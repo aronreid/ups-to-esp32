@@ -1,0 +1,72 @@
+# ESP-IDF
+firmware/build/
+firmware/build-*/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+firmware/dependencies.lock
+
+# KiCad
+hardware/kicad/*-backups/
+hardware/kicad/*.kicad_prl
+hardware/kicad/fp-info-cache
+hardware/kicad/*.net
+hardware/kicad/*.bak
+
+# Generated manufacturing output is committed deliberately (hardware/bom/),
+# but fabrication zips are not.
+hardware/bom/*.zip
+hardware/gerbers/
+
+# UPS captures are committed as reference data, but not the system-wide USB
+# dumps: those enumerate every attached device, including serial numbers of
+# unrelated hardware. The UPS-specific files are what matter.
+captures/**/ioreg-usb.txt
+captures/**/ioreg-hid.txt
+captures/**/system_profiler-usb.txt
+captures/**/report-descriptor-raw.txt
+
+__pycache__/
+*.pyc
+
+.DS_Store
+tools/host-test/build/
+hardware/kicad/*-backups/
+
+# Specctra round-trip intermediates
+hardware/kicad/*.dsn
+hardware/kicad/*.ses
+
+# KiCad's editor lock files. These got committed once and then showed up as
+# spurious deletions on every machine that opened the board.
+hardware/kicad/~*.lck
+
+# hardware/fab/ IS committed, deliberately, and this comment is the argument
+# for why that is safe here.
+#
+# The generic rule is to keep generated artifacts out of git, because a stale
+# one passes every gate that never looks at it. This repo would rather have the
+# order files reachable from any machine -- and from GitLab -- without KiCad
+# installed, since uploading them is the whole point of the board. The staleness
+# risk is handled instead of avoided: tools/pack-fab.sh writes the SHA-256 of
+# the .kicad_pcb it plotted from to hardware/fab/SOURCE.sha256, and
+# tools/test/test_fab.py fails the harness if the board no longer hashes to it.
+# A timestamp would not survive a clone; a hash does.
+#
+# Loose gerbers under hardware/fab/gerber/ are committed too, so a diff shows
+# what actually changed on a layer rather than "the zip is different".
+#
+# The ONE exception is KiCad's raw position export. It is an intermediate that
+# gen-bom.py reads and rewrites into hardware/bom/cpl.csv, and it carries RAW
+# KICAD ANGLES -- uploading it instead of the real CPL fits eight parts the
+# wrong way round. It is not kept where someone can pick it by mistake;
+# pack-fab.sh regenerates it every run.
+hardware/fab/ups-adaptor-cpl.csv
+
+# VS Code Local History extension
+.history/
+**/.history/
+
+# Freerouting is a ~67MB binary, fetched not committed. See docs/TOOLCHAIN.md.
+tools/freerouting.jar
+hardware/tools/freerouting.jar

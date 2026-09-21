@@ -1,0 +1,703 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Single page, no external requests. This device is often on a network with
+     no internet route, and every byte lives in the app partition, so there is
+     no framework, no web font and no CDN here on purpose.
+
+     TWO SKINS, ONE MARKUP. body[data-ui] switches between:
+       a  "instrument" -- hairline rules, dense, one accent
+       b  "soft"       -- cards, shadow, tiles, icon
+     They share every element and differ only in CSS, so a change to the
+     information architecture cannot drift between them.
+
+     Rules this page follows:
+     - Say what is happening in words. OL and OB are NUT's vocabulary, not a
+       person's. The codes stay, small, for anyone comparing with upsc.
+     - Offer only what THIS UPS can do, from the caps bitmask firmware
+       discovers in the report descriptor.
+     - Never show a number the UPS did not report. Absent is absent. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme:dark)">
+<title>ups-adaptor</title>
+<style>
+:root{
+  --bg:#fbfbfa;--fg:#14171a;--dim:#6d7680;--line:#e6e7e4;--card:#fff;
+  --ok:#2f7d32;--warn:#b26a00;--bad:#c02a2a;--accent:#3f7fb0;
+  --shadow:none;--radius:10px;--gap:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#141517;--fg:#e9eaec;--dim:#8d949c;--line:#272a2e;--card:#1b1d20;
+  --ok:#57c07a;--warn:#e0a13a;--bad:#e06a6a;--accent:#6aa9dc;
+}}
+body[data-ui=b]{--bg:#f3f5f7;--card:#fff;--line:#e6ebf0;--radius:14px;--gap:10px;
+  --shadow:0 1px 2px rgba(20,30,45,.06),0 4px 14px rgba(20,30,45,.05)}
+@media(prefers-color-scheme:dark){body[data-ui=b]{--bg:#111316;--card:#191c20;--line:#262a2f;
+  --shadow:0 1px 2px rgba(0,0,0,.4)}}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);padding:20px 16px 40px;
+  font:15px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif}
+main{max-width:680px;margin:0 auto}
+h1{font-size:17px;margin:0;letter-spacing:-.2px}
+h2{font-size:16px;margin:0;font-weight:650;letter-spacing:-.1px}
+.sub{color:var(--dim);font-size:12.5px}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.hdr-r{display:flex;align-items:center;gap:10px;flex:none}
+.fresh{font-size:11px;color:var(--dim);white-space:nowrap}
+.uisw{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.uisw button{border:0;background:transparent;color:var(--dim);font:inherit;font-size:11px;
+  font-weight:600;padding:3px 9px;cursor:pointer}
+.uisw button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:var(--gap);box-shadow:var(--shadow)}
+body[data-ui=a] .card{background:transparent;border:0;border-top:1px solid var(--line);
+  border-radius:0;padding:14px 0;margin-bottom:0;box-shadow:none}
+body[data-ui=a] .card:first-of-type{border-top:0}
+
+/* ---- status ---- */
+.status{display:flex;gap:12px;align-items:flex-start}
+body[data-ui=b] .status{border-left:4px solid var(--st,var(--dim))}
+.ico{width:30px;height:30px;border-radius:9px;flex:none;display:flex;align-items:center;
+  justify-content:center;background:color-mix(in srgb,var(--st,var(--dim)) 14%,transparent)}
+body[data-ui=a] .ico{display:none}
+body[data-ui=a] h2{color:var(--st,var(--fg))}
+.codes{margin-top:8px}
+.flag{display:inline-block;margin-right:5px;padding:2px 7px;border-radius:99px;font-size:10.5px;
+  font-weight:600;background:var(--line);color:var(--dim);letter-spacing:.3px}
+
+/* ---- hero + gauge ---- */
+.k{font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim)}
+.heroline{display:flex;align-items:baseline;gap:9px;margin-top:2px}
+.heroline b{font-size:42px;line-height:1;font-weight:600;letter-spacing:-1.6px;
+  font-variant-numeric:tabular-nums}
+.heroline span{color:var(--dim);font-size:13px}
+.gauge{height:8px;border-radius:99px;background:var(--line);margin-top:11px;overflow:hidden}
+.gauge i{display:block;height:100%;width:0;border-radius:99px;background:var(--st,var(--dim));
+  transition:width .6s ease,background .6s ease}
+
+/* ---- stats ---- */
+.group+.group{margin-top:14px}
+.grp{margin-bottom:6px}
+body[data-ui=a] .stat{display:flex;justify-content:space-between;align-items:baseline;
+  padding:4px 0;border-bottom:1px solid var(--line)}
+body[data-ui=a] .stat:last-child{border-bottom:0}
+body[data-ui=a] .sk{color:var(--dim);font-size:13px}
+body[data-ui=a] .sv{font-weight:600;font-variant-numeric:tabular-nums}
+body[data-ui=b] .items{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+body[data-ui=b] .stat{background:var(--bg);border-radius:11px;padding:9px 11px}
+body[data-ui=b] .sk{display:block;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+body[data-ui=b] .sv{display:block;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:1px}
+.sv small{font-size:11px;font-weight:500;color:var(--dim)}
+.sv em{font-style:normal;font-size:11px;font-weight:600}
+
+/* ---- chart ---- */
+svg.chart{width:100%;height:78px;display:block;margin-top:8px;overflow:visible}
+.legend{font-size:11.5px;color:var(--dim);margin-top:5px}
+
+/* ---- controls ---- */
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:6px;max-width:320px}
+.seg button{flex:1;border:0;background:transparent;color:var(--dim);font:inherit;font-size:12px;
+  padding:7px 0;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:#fff;font-weight:600}
+button.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;
+  padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;margin:8px 6px 0 0}
+/* Skin A drops the button fill -- but NOT on the primary or danger buttons,
+ * whose text colour is chosen against that fill. Without the :not() they came
+ * out white-on-white. */
+body[data-ui=a] button.btn:not(.pri):not(.danger){background:transparent}
+button.btn.pri{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button.btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button.link{border:0;background:none;color:var(--dim);font:inherit;font-size:11.5px;
+  text-decoration:underline;cursor:pointer;padding:0}
+.note{color:var(--dim);font-size:12.5px;margin:6px 0 0}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+label{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:inherit;font-size:14px}
+input[type=number]{width:96px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.danger-card{border-color:color-mix(in srgb,var(--bad) 35%,var(--line))}
+summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"change";margin-left:auto;font-size:11.5px;color:var(--dim);text-decoration:underline}
+details[open] summary::after{content:"close"}
+#wifi-sum,#nut-sum{font-size:13.5px}
+
+/* The firmware hero. Loud on purpose when it has something to say, and a
+ * single quiet line when it does not -- an update nobody notices may as well
+ * not exist, and a permanent banner is one people stop seeing. */
+#fw .hero-card{border-radius:var(--radius);padding:16px 18px;margin-bottom:var(--gap);
+  box-shadow:var(--shadow);border:1px solid transparent}
+#fw .hero-card.loud{background:var(--fwbg);border-color:var(--fwbd);color:#fff}
+#fw .hero-card.loud .k{color:rgba(255,255,255,.72)}
+#fw .hero-card.loud .note{color:rgba(255,255,255,.88)}
+#fw .hero-card.loud b{color:#fff}
+#fw h2{font-size:17px;margin:0 0 2px}
+#fw .row2{display:flex;gap:14px;align-items:flex-start}
+#fw .ico2{width:34px;height:34px;border-radius:10px;flex:none;display:flex;
+  align-items:center;justify-content:center;background:rgba(255,255,255,.16)}
+#fw button.act{background:#fff;color:var(--fwbg);border:0;border-radius:8px;
+  padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px}
+#fw button.ghost2{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);
+  border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;margin-top:10px;margin-left:8px}
+#fw .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.28);margin-top:12px;overflow:hidden}
+#fw .bar i{display:block;height:100%;background:#fff;border-radius:99px;transition:width .5s ease}
+/* Quiet state: one line, no card weight. */
+#fw .calm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  color:var(--dim);font-size:12.5px;padding:2px 2px 10px}
+#fw .calm b{color:var(--fg);font-weight:600}
+#fw .calm button{border:0;background:none;color:var(--dim);font:inherit;font-size:12.5px;
+  text-decoration:underline;cursor:pointer;padding:0}
+#fw .calm label{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer}
+#fw .calm input{width:auto}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:var(--line);padding:1px 5px;border-radius:4px}
+.copyable{cursor:pointer}
+.copyable:active{opacity:.6}
+body[data-ui=a] #nut-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 18px}
+/* Addresses and hostnames are longer than a reading and must not clip, so
+ * these tiles get their own smaller type and are allowed to wrap. */
+#nut-fields .sv{font-size:14.5px;line-height:1.35;overflow-wrap:anywhere}
+body[data-ui=b] #nut-fields{grid-template-columns:repeat(auto-fit,minmax(124px,1fr))}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);
+  background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;
+  font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:9}
+#toast.show{opacity:1;transform:translateX(-50%)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body data-ui="a">
+<main>
+  <div class="hdr">
+    <div><h1>ups-adaptor</h1><div class="sub" id="sub">connecting…</div></div>
+    <div class="hdr-r">
+      <span class="fresh" id="fresh"></span>
+      <div class="uisw" role="group" aria-label="Visual style">
+        <button data-set="a" aria-pressed="true">A</button><button data-set="b" aria-pressed="false">B</button>
+      </div>
+    </div>
+  </div>
+
+  <section id="fw"></section>
+
+  <div class="card" id="setup-banner" hidden>
+    <div class="k">Setup mode</div>
+    <p class="note">This board has no network yet. Pick yours below and it will restart and
+      join it. You are connected to <b id="apname">its own access point</b>.</p>
+  </div>
+
+  <details class="card" id="nut-card">
+    <summary><span class="k">NUT</span><span id="nut-sum"> </span></summary>
+    <p class="note" style="margin-top:10px">Point Home Assistant, a NAS or <code>upsmon</code>
+      at these. Tap a value to copy it.</p>
+    <div class="items" id="nut-fields"></div>
+    <p class="note" id="nut-example"></p>
+  </details>
+
+  <div class="card status" id="statuscard">
+    <div class="ico" id="ico"></div>
+    <div style="min-width:0">
+      <h2 id="headline">Looking for the UPS…</h2>
+      <p class="sub" id="detail"></p>
+      <div class="codes" id="codes"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="k" id="herok">Battery</div>
+    <div class="heroline"><b id="hero">--</b><span id="heronote"></span></div>
+    <div class="gauge"><i id="gfill"></i></div>
+  </div>
+
+  <div class="card" id="stats"></div>
+
+  <div class="card" id="chart-card" hidden>
+    <div class="k">Last few minutes</div>
+    <svg class="chart" id="chart" viewBox="0 0 300 78" preserveAspectRatio="none"></svg>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="card" id="controls-card" hidden>
+    <div class="k">UPS controls</div>
+    <div id="controls"></div>
+    <p class="note" id="caps-note"></p>
+  </div>
+
+  <div class="card danger-card" id="danger-card" hidden>
+    <div class="k" style="color:var(--bad)">Danger zone</div>
+    <div id="danger"></div>
+  </div>
+
+  <details class="card" id="wifi-card">
+    <summary><span class="k">Wi-Fi</span><span id="wifi-sum"> </span></summary>
+    <label for="nets">Network <button class="link" id="rescan" type="button">rescan</button></label>
+    <select id="nets"><option value="">tap rescan to list networks…</option></select>
+    <label for="ssid">…or type it (hidden networks)</label>
+    <input id="ssid" autocomplete="off" placeholder="SSID">
+    <label for="pass">Password</label>
+    <input id="pass" type="password" autocomplete="off">
+    <button class="btn pri" id="save">Save and connect</button>
+  </details>
+
+  <div class="card">
+    <div class="k">Maintenance</div>
+    <p class="note">If the UPS stops responding, power-cycling its USB interface usually
+      recovers it without unplugging anything.</p>
+    <button class="btn" id="reset">Power-cycle UPS link</button>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+const OL=1, OB=2, LB=4, CHRG=8, DISCHRG=16, RB=32, OVER=64;
+const CAP_TEST=1, CAP_BEEPER=2, CAP_LOWBATT=4, CAP_SHUTDOWN=8;
+const CODES=[[OL,'OL'],[OB,'OB'],[LB,'LB'],[CHRG,'CHRG'],[DISCHRG,'DISCHRG'],[RB,'RB'],[OVER,'OVER']];
+const PROVISIONING = 1;
+
+/* Skin choice is a per-browser preference, so localStorage is the right home:
+   it must not follow the device to another viewer. */
+// ?ui=a|b wins, so a skin can be linked or screenshotted directly; otherwise
+// the remembered choice, otherwise A.
+const qui = new URLSearchParams(location.search).get('ui');
+if (qui === 'a' || qui === 'b') document.body.dataset.ui = qui;
+else { try { const u = localStorage.getItem('ui'); if (u) document.body.dataset.ui = u; } catch (e) {} }
+document.querySelectorAll('.uisw button').forEach(b => b.onclick = () => {
+  document.body.dataset.ui = b.dataset.set;
+  try { localStorage.setItem('ui', b.dataset.set); } catch (e) {}
+  document.querySelectorAll('.uisw button').forEach(x =>
+    x.setAttribute('aria-pressed', String(x === b)));
+});
+document.querySelectorAll('.uisw button').forEach(x =>
+  x.setAttribute('aria-pressed', String(x.dataset.set === document.body.dataset.ui)));
+
+const ICONS = {
+  ok:   '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+  batt: '<rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/>',
+  warn: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  off:  '<path d="M18.4 6.6A9 9 0 1 1 5.6 6.6M12 2v10"/>',
+};
+function icon(name, colour) {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${colour}"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+}
+
+// Worst news first: a low battery matters more than which source feeds the load.
+function explain(u) {
+  const s = u.status;
+  if (!u.attached) return ['bad','off','No UPS detected',
+    'Check the USB cable to the UPS. The board keeps looking.'];
+  if (s & OVER) return ['bad','warn','Overloaded',
+    'The UPS is being asked for more than it can supply. Unplug something.'];
+  if (s & LB) return ['bad','warn','Battery low — shut down now',
+    'The UPS is about to run out. Anything it powers should be shut down.'];
+  if (s & RB) return ['warn','warn','Battery needs replacing',
+    'The UPS reports its battery has failed a test. Do not trust the runtime figure.'];
+  if (s & OB) {
+    const m = u.battery_runtime === null ? null : Math.round(u.battery_runtime / 60);
+    return ['warn','batt','On battery — mains power has failed',
+      m === null ? 'Running from the battery.' : `About ${m} minute${m===1?'':'s'} of runtime left.`];
+  }
+  if (s & DISCHRG) {
+    const t = u.test_result === 5;
+    return ['warn','batt', t ? 'Battery test running' : 'Battery is discharging',
+      t ? 'Mains power is fine. The UPS is deliberately running the battery down to re-measure its runtime, and will recharge afterwards.'
+        : 'Mains power is present, but the UPS is drawing from its battery rather than charging it.'];
+  }
+  if (s & OL) return ['ok','ok','Running on mains power',
+    (s & CHRG) ? 'Battery is charging.' : 'Battery is charged and ready.'];
+  return ['warn','warn','Connected, waiting for a status report',
+    'The UPS has not said whether it is on mains or battery yet.'];
+}
+
+const TEST_WORDS={0:'no test recorded',1:'passed',2:'passed, with a warning',3:'failed',
+                  4:'aborted',5:'running now…',6:'never run'};
+const BEEPER_WORDS={0:'unknown',1:'switched off',2:'on',3:'muted for now'};
+const num=(v,u,d=0)=>v===null||v===undefined?null:v.toFixed(d)+u;
+
+// Grouped by circuit rather than one flat grid. Absent readings are dropped,
+// not shown as a permanent dash.
+const GROUPS = [
+  ['Battery', [
+    ['battery_runtime','Runtime', v => v>=3600 ? `${Math.floor(v/3600)} h ${Math.round(v%3600/60)} m`
+                                               : `${Math.round(v/60)} min`],
+    ['battery_voltage','Voltage', v => num(v,' V',1)],
+    ['lowbatt_limit','Warn below', v => num(v,'%')],
+    ['battery_mfr_date','Fitted', v => {
+       const y=(Date.now()-Date.parse(v))/31557600000;
+       if(!isFinite(y)) return v;
+       const c=y>=5?'var(--bad)':y>=3?'var(--warn)':'var(--dim)';
+       return `${v} <em style="color:${c}">${y.toFixed(1)} yr</em>`;
+    }],
+  ]],
+  ['Input', [
+    ['input_voltage','Voltage', v => num(v,' V')],
+    ['input_frequency','Frequency', v => num(v,' Hz',1)],
+  ]],
+  ['Output', [
+    ['output_voltage','Voltage', v => num(v,' V')],
+    ['load','Load', v => num(v,'%')],
+    ['realpower','Power', v => num(v,' W')],
+    ['apparentpower','Apparent', v => num(v,' VA')],
+    ['realpower_nom','UPS rating', v => num(v,' W')],
+  ]],
+];
+
+const HISTORY = 120;                       // 3s a sample: six minutes
+const hist = { batt: [], load: [], vin: [] };
+function push(u){
+  const a=(k,v)=>{hist[k].push(v===null||v===undefined?NaN:v); if(hist[k].length>HISTORY) hist[k].shift();};
+  a('batt',u.battery_charge); a('load',u.load); a('vin',u.input_voltage);
+}
+function path(series, lo, hi, close) {
+  if (series.length < 2) return '';
+  const span=(hi-lo)||1; let d='', pen=false, firstX=null, lastX=0;
+  series.forEach((v,i)=>{
+    if(isNaN(v)){pen=false;return;}
+    const x=(i/(HISTORY-1))*300, y=72-((v-lo)/span)*64;
+    if(firstX===null) firstX=x;
+    lastX=x;
+    d += (pen?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' '; pen=true;
+  });
+  if (close && firstX!==null) d += `L${lastX.toFixed(1)} 76 L${firstX.toFixed(1)} 76 Z`;
+  return d;
+}
+function draw(){
+  if(hist.batt.length<2) return;
+  $('chart-card').hidden=false;
+  const vin=hist.vin.filter(v=>!isNaN(v));
+  const lo=vin.length?Math.min(...vin)-2:0, hi=vin.length?Math.max(...vin)+2:1;
+  const mins=Math.round(hist.batt.length*3/60);
+  $('chart').innerHTML =
+    `<path d="${path(hist.batt,0,100,true)}" fill="color-mix(in srgb,var(--ok) 12%,transparent)" stroke="none"/>`+
+    `<path d="${path(hist.batt,0,100)}" fill="none" stroke="var(--ok)" stroke-width="1.5"/>`+
+    `<path d="${path(hist.load,0,100)}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>`+
+    `<path d="${path(hist.vin,lo,hi)}" fill="none" stroke="var(--dim)" stroke-width="1" stroke-dasharray="3 2"/>`+
+    `<line x1="0" y1="76" x2="300" y2="76" stroke="var(--line)" stroke-width="1"/>`;
+  $('legend').innerHTML =
+    `<b style="color:var(--ok)">—</b> battery % &nbsp; <b style="color:var(--accent)">—</b> load % &nbsp;`+
+    `<b style="color:var(--dim)">- -</b> input${vin.length?' '+lo.toFixed(0)+'–'+hi.toFixed(0)+' V':''}`+
+    ` &nbsp;·&nbsp; ${mins} min so far`;
+}
+
+let toastT;
+function toast(msg){
+  $('toast').textContent=msg; $('toast').classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>$('toast').classList.remove('show'),2600);
+}
+async function cmd(name,arg){
+  const r=await (await fetch('/api/cmd',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(arg===undefined?{cmd:name}:{cmd:name,arg})})).json();
+  toast(r.ok ? 'Done' : (r.error || 'The UPS refused it'));
+  poll();
+}
+
+// Mirrors ota_state_t in ota.h.
+const OTA={IDLE:0,CHECKING:1,AVAILABLE:2,UP_TO_DATE:3,DOWNLOADING:4,INSTALLED:5,FAILED:6,
+           INCOMPATIBLE:7};
+let otaBuilt=null;
+
+// One element, five moods. Red when there is an update to take, blue while it
+// is coming down, green when it is ready to run, amber while a fresh image is
+// still on trial or when the published release is for another board -- and a
+// single grey line the rest of the time.
+function ota(s){
+  const o=s.ota; if(!o) return;
+  const running=s.version;
+  const key=[o.state,o.latest,o.progress,o.pending,o.auto,o.error,o.refused].join('|');
+  if(key===otaBuilt) return;
+  otaBuilt=key;
+
+  const ICO={
+    down:'<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    tick:'<path d="M20 6 9 17l-5-5"/>',
+    warn:'<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  };
+  const svg=g=>`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff"
+      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${g}</svg>`;
+
+  const loud=(bg,bd,icon,title,body,buttons='')=>
+    `<div class="hero-card loud" style="--fwbg:${bg};--fwbd:${bd}">
+       <div class="row2"><div class="ico2">${svg(icon)}</div>
+       <div style="min-width:0;flex:1"><h2>${title}</h2>${body}${buttons}</div></div></div>`;
+
+  let html;
+  if(o.state===OTA.AVAILABLE){
+    html=loud('#b3261e','#8f1d18',ICO.down,'Firmware update available',
+      `<p class="note" style="margin:2px 0 0">Version <b>${o.latest}</b> is published for this
+       board. You are running <b>${running}</b>. Nothing installs until you choose to.</p>`,
+      `<button class="act" id="fw-install">Install ${o.latest}</button>
+       <button class="ghost2" id="fw-check">Check again</button>`);
+  } else if(o.state===OTA.DOWNLOADING){
+    html=loud('#1f4e6b','#173b52',ICO.down,'Downloading update',
+      `<p class="note" style="margin:2px 0 0">${o.progress}% of <b>${o.latest}</b>. Leave the
+       board powered — it keeps running the current firmware until this finishes.</p>
+       <div class="bar"><i style="width:${o.progress}%"></i></div>`);
+  } else if(o.state===OTA.INSTALLED){
+    html=loud('#1f7a3d','#165c2e',ICO.tick,'Update installed',
+      `<p class="note" style="margin:2px 0 0"><b>${o.latest}</b> is written and will run after a
+       restart. If it fails to come back, the board returns to <b>${running}</b> by itself.</p>`,
+      `<button class="act" id="fw-reboot">Restart now</button>`);
+  } else if(o.state===OTA.INCOMPATIBLE){
+    // No install button on purpose. This is not something the owner can retry
+    // their way out of -- the file on GitHub is wrong, and the board has
+    // already checked it byte for byte and declined it.
+    html=loud('#8a5a00','#6b4600',ICO.warn,'Update not for this board',
+      `<p class="note" style="margin:2px 0 0"><b>${o.latest||'The latest release'}</b> was
+       published, but its firmware is not built for this board, so it was refused and
+       nothing was written. You are still running <b>${running}</b>${
+       o.error?` — <span style="opacity:.85">${o.error}</span>`:''}.
+       A corrected release will be offered here.</p>`,
+      `<button class="ghost2" id="fw-check">Check again</button>`);
+  } else if(o.pending){
+    html=loud('#8a5a00','#6b4600',ICO.warn,'New firmware on trial',
+      `<p class="note" style="margin:2px 0 0">Running <b>${running}</b>. It reverts to the
+       previous version unless it stays up long enough to prove itself — no action needed.</p>`);
+  } else {
+    const st = o.state===OTA.CHECKING ? 'checking…'
+             : o.state===OTA.FAILED   ? (o.error||'last check failed')
+             : o.checked              ? 'up to date' : 'not checked yet';
+    html=`<div class="calm">
+        <span>Firmware <b>${running}</b> · <span style="color:var(--dim)"
+          title="The release asset this board installs. Another board's file is refused.">${s.image||''}</span>
+          · <span${o.state===OTA.FAILED?' style="color:var(--bad)"':''}>${st}</span></span>
+        <button id="fw-check">check now</button>
+        <label title="Contacts github.com. Never installs anything by itself.">
+          <input type="checkbox" id="fw-auto"${o.auto?' checked':''}> check daily
+        </label>
+      </div>`;
+  }
+  $('fw').innerHTML=html;
+
+  const post=async(u,msg)=>{const r=await(await fetch(u,{method:'POST'})).json();
+                            toast(r.ok?msg:(r.error||'failed')); otaBuilt=null; poll();};
+  if($('fw-check'))  $('fw-check').onclick=()=>post('/api/ota/check','Checking GitHub…');
+  if($('fw-install'))$('fw-install').onclick=()=>
+      confirm(`Install ${o.latest}?\n\nIt downloads to the spare flash slot and runs after a restart. If it fails to come back, the board reverts to ${running} by itself.`)
+      && post('/api/ota/install','Downloading…');
+  if($('fw-reboot')) $('fw-reboot').onclick=()=>post('/api/reboot','Restarting…');
+  if($('fw-auto'))   $('fw-auto').onchange=async e=>{
+    const r=await(await fetch('/api/ota/auto',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({enabled:e.target.checked})})).json();
+    toast(r.ok?(e.target.checked?'Will check daily':'Automatic checks off'):'failed');
+    otaBuilt=null; poll();
+  };
+}
+
+let builtCaps=-1;
+function controls(u){
+  if(u.caps===builtCaps) return;
+  builtCaps=u.caps;
+  const c=$('controls'); c.innerHTML=''; $('controls-card').hidden=false;
+
+  if(u.caps & CAP_TEST){
+    c.insertAdjacentHTML('beforeend',
+      `<p class="note" style="margin-top:0">A self-test runs the UPS on its battery for a few
+       seconds to prove the battery still works. Anything plugged into it stays powered.</p>
+       <button class="btn pri" id="t-quick">Run self-test</button>
+       <button class="btn" id="t-deep">Deep test</button>
+       <button class="btn" id="t-abort">Stop</button>
+       <p class="note">Last result: <b id="t-res">—</b></p>`);
+    $('t-quick').onclick=()=>cmd('test.battery.start.quick');
+    $('t-deep').onclick=()=>confirm('A deep test runs the battery down to measure real runtime. It takes a long time and leaves the battery flat. Continue?')&&cmd('test.battery.start.deep');
+    $('t-abort').onclick=()=>cmd('test.battery.stop');
+  }
+  if(u.caps & CAP_BEEPER){
+    c.insertAdjacentHTML('beforeend',
+      `<hr><div class="k">Beeper</div>
+       <p class="note" style="margin-top:2px">The UPS's own alarm. Muting silences the one
+        sounding now; switching it off keeps future ones quiet too.</p>
+       <div class="seg" id="bseg">
+         <button data-b="2">On</button><button data-b="3">Muted</button><button data-b="1">Off</button>
+       </div>`);
+    const map={2:'beeper.enable',3:'beeper.mute',1:'beeper.disable'};
+    document.querySelectorAll('#bseg button').forEach(b=>b.onclick=()=>cmd(map[b.dataset.b]));
+  }
+  if(u.caps & CAP_LOWBATT){
+    c.insertAdjacentHTML('beforeend',
+      `<hr><div class="k">Low-battery warning</div>
+       <p class="note" style="margin-top:2px">The level at which the UPS starts warning it is
+        nearly out. Clients use that warning to decide when to shut down.</p>
+       <div class="row"><div><label for="lb">Warn below</label>
+       <input type="number" id="lb" min="0" max="100" step="1"></div>
+       <button class="btn" id="lb-set">Set</button></div>`);
+    $('lb-set').onclick=()=>cmd('battery.charge.low',parseInt($('lb').value,10));
+  }
+  $('caps-note').textContent = u.caps ? '' : 'This UPS exposes no controls over USB — readings only.';
+
+  if(u.caps & CAP_SHUTDOWN){
+    $('danger-card').hidden=false;
+    $('danger').innerHTML =
+      `<p class="note" style="margin-top:2px"><b>Cuts power to everything the UPS feeds.</b>
+       That includes this board, so it goes dark and cannot undo it. This UPS has no
+       "turn back on" command, so the outlets stay dead until mains power returns.
+       Type <b>OFF</b> to enable the button.</p>
+       <div class="row">
+         <div><label for="kc">Confirm</label><input id="kc" autocomplete="off" placeholder="OFF"></div>
+         <div><label for="kd">Seconds first</label><input type="number" id="kd" min="0" max="600" value="60"></div>
+         <button class="btn danger" id="kill" disabled>Cut the outlets</button>
+       </div>`;
+    $('kc').oninput=e=>{$('kill').disabled=e.target.value.trim().toUpperCase()!=='OFF';};
+    $('kill').onclick=()=>cmd('load.off',parseInt($('kd').value,10));
+  }
+}
+
+let last=0;
+async function poll(){
+  try{
+    const s=await (await fetch('/api/status')).json();
+    const u=s.ups;
+    last=Date.now();
+    // Uptime and the last reset reason sit in the subtitle: a board that has
+    // been up nine seconds when you did not just restart it is the single most
+    // useful thing this page can tell you, and it is invisible otherwise.
+    const up = s.uptime_s ?? null;
+    const upTxt = up === null ? '' :
+      up < 120 ? ` · up ${up}s` :
+      up < 7200 ? ` · up ${Math.round(up/60)} min` :
+      ` · up ${(up/3600).toFixed(1)} h`;
+    const rst = s.last_reset && s.last_reset !== 'power-on' && s.last_reset !== 'external'
+      ? ` · last reset: ${s.last_reset}` : '';
+    // A crash count that PERSISTS. Uptime and last_reset describe only this
+    // life, and a board that panics, reboots in under a second and rejoins
+    // Wi-Fi looks perfectly healthy half a minute later. One did, and it was
+    // found by chance. This makes it impossible to miss.
+    const cr = s.crashes > 0
+      ? ` · <b>${s.crashes} crash${s.crashes === 1 ? '' : 'es'}</b> since flashing` : '';
+    $('sub').innerHTML = `${s.board} · ${s.version}${upTxt}` +
+      (rst ? `<span style="color:var(--bad)">${rst}</span>` : '') +
+      (cr  ? `<span style="color:var(--bad)">${cr}</span>` : '');
+
+    const [tone,ic,head,detail]=explain(u);
+    const colour=tone==='ok'?'var(--ok)':tone==='warn'?'var(--warn)':'var(--bad)';
+    document.documentElement.style.setProperty('--st',colour);
+    $('statuscard').style.setProperty('--st',colour);
+    $('ico').innerHTML=icon(ic,colour);
+    $('ico').style.setProperty('--st',colour);
+    $('headline').textContent=head;
+    $('headline').style.setProperty('--st',colour);
+    $('detail').textContent = u.attached && u.model ? `${u.mfr} ${u.model} — ${detail}` : detail;
+    $('codes').innerHTML = u.attached
+      ? CODES.filter(([b])=>u.status&b).map(([,n])=>`<span class="flag">${n}</span>`).join('')+
+        '<span class="flag" style="background:none">NUT status</span>' : '';
+
+    // Hero: runtime is the number that matters during an outage; charge otherwise.
+    const onbatt = u.attached && (u.status & (OB|DISCHRG));
+    if (onbatt && u.battery_runtime !== null) {
+      $('herok').textContent='Runtime remaining';
+      $('hero').textContent=Math.round(u.battery_runtime/60);
+      $('heronote').textContent=`minutes · ${u.battery_charge===null?'--':Math.round(u.battery_charge)}% charge`;
+    } else {
+      $('herok').textContent='Battery charge';
+      $('hero').textContent=u.battery_charge===null?'--':Math.round(u.battery_charge)+'%';
+      $('heronote').textContent=u.battery_runtime===null?'':`${Math.round(u.battery_runtime/60)} min of runtime`;
+    }
+    $('gfill').style.width=(u.battery_charge===null?0:u.battery_charge)+'%';
+    $('gfill').style.background=colour;
+
+    $('stats').innerHTML = GROUPS.map(([name,rows])=>{
+      const items=rows.filter(([k])=>u[k]!==null&&u[k]!==undefined)
+        .map(([k,label,f])=>`<div class="stat"><span class="sk">${label}</span><span class="sv">${f(u[k])}</span></div>`);
+      return items.length?`<div class="group"><div class="k grp">${name}</div><div class="items">${items.join('')}</div></div>`:'';
+    }).join('') || '<div class="note">No readings yet.</div>';
+
+    if(u.attached){ push(u); draw(); controls(u); }
+    if($('t-res')) $('t-res').textContent=TEST_WORDS[u.test_result]??'—';
+    document.querySelectorAll('#bseg button').forEach(b=>
+      b.setAttribute('aria-pressed',String(+b.dataset.b===u.beeper)));
+    if($('lb')&&document.activeElement!==$('lb')&&u.lowbatt_limit!==null)
+      $('lb').value=Math.round(u.lowbatt_limit);
+
+    // Everything a client needs, read off the device rather than guessed at.
+    // mDNS is offered first: it survives a DHCP lease change, which the
+    // address does not.
+    ota(s);
+
+    const nut=s.nut||{};
+    const host=(w0=>w0)(s.wifi.ip);
+    const fields=[['Host','ups-adaptor.local'],['or address',host],
+                  ['Port',String(nut.port||3493)],['UPS name',nut.name||'ups'],
+                  ['Login','none needed']];
+    $('nut-fields').innerHTML=fields.map(([k,v])=>
+      `<div class="stat copyable" data-copy="${v}"><span class="sk">${k}</span><span class="sv">${v}</span></div>`).join('');
+    $('nut-example').innerHTML=`Test it from any machine with NUT installed: `+
+      `<code>upsc ${nut.name||'ups'}@${host}</code>`;
+    document.querySelectorAll('#nut-fields .copyable').forEach(el=>el.onclick=async()=>{
+      const t=el.dataset.copy;
+      // The clipboard API needs a secure context and this is plain HTTP on a
+      // LAN, so selecting the text is the fallback that always works.
+      try{ await navigator.clipboard.writeText(t); toast('Copied '+t); }
+      catch(e){
+        const r=document.createRange(); r.selectNodeContents(el.querySelector('.sv'));
+        const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        toast('Selected — press copy');
+      }
+    });
+    const cl=nut.clients||0;
+    $('nut-sum').textContent =
+      `${nut.name||'ups'}@${host}:${nut.port||3493} · ` +
+      (cl ? `${cl} client${cl===1?'':'s'} connected` : 'no clients yet');
+
+    const w=s.wifi;
+    if(w.state===PROVISIONING){
+      $('setup-banner').hidden=false;
+      if(w.ap) $('apname').textContent=w.ap;
+      if(!scanned) scan();
+      $('wifi-card').open=true;
+      $('wifi-sum').textContent='not configured';
+    } else if(w.state===3){
+      const q=w.rssi>=-55?'excellent':w.rssi>=-67?'good':w.rssi>=-75?'fair':'weak';
+      $('wifi-sum').textContent=`${w.ssid||'connected'} · ${w.ip} · ${w.rssi} dBm (${q})`;
+    } else {
+      $('wifi-sum').textContent=w.ssid?`connecting to ${w.ssid}…`:'connecting…';
+    }
+  }catch(e){ $('sub').textContent='lost contact with device'; }
+}
+
+// Freshness is its own ticker: if polling stops, this keeps counting and the
+// staleness becomes visible instead of the page just freezing.
+setInterval(()=>{
+  if(!last) return;
+  const s=Math.round((Date.now()-last)/1000);
+  $('fresh').textContent = s<3?'updated just now':`updated ${s}s ago`;
+  $('fresh').style.color = s>12?'var(--bad)':'var(--dim)';
+},1000);
+
+let scanned=false;
+async function scan(){
+  scanned=true;
+  $('nets').innerHTML='<option value="">scanning…</option>';
+  try{
+    const r=await (await fetch('/api/scan')).json();
+    $('nets').innerHTML='<option value="">choose a network…</option>'+
+      r.nets.map(n=>`<option value="${n.ssid.replace(/"/g,'&quot;')}">${n.ssid} ${n.secure?'🔒':''} ${n.rssi} dBm</option>`).join('');
+  }catch(e){ $('nets').innerHTML='<option value="">scan failed — type it below</option>'; }
+}
+$('rescan').onclick=scan;
+
+$('save').onclick=async()=>{
+  const ssid=$('ssid').value.trim()||$('nets').value;
+  if(!ssid){ toast('Pick a network, or type its name'); return; }
+  const r=await (await fetch('/api/wifi',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ssid,pass:$('pass').value})})).json();
+  if(!r.ok){ toast(r.error||'failed'); return; }
+  $('sub').textContent=`saved — restarting to join "${ssid}"`;
+  $('setup-banner').innerHTML=`<div class="k">Restarting</div><p class="note">Rejoin your own
+    Wi-Fi, then open <b>http://ups-adaptor.local/</b>. If that name does not resolve, look for
+    the board's address on your router.</p>`;
+};
+$('reset').onclick=async()=>{
+  const r=await (await fetch('/api/ups/reset',{method:'POST'})).json();
+  toast(r.ok?'UPS link power-cycled':(r.error||'failed'));
+};
+poll(); setInterval(poll,3000);
+</script>
+</body>
+</html>

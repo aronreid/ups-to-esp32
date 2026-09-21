@@ -1,0 +1,39 @@
+menu "ups-adaptor board"
+
+choice UPSA_BOARD
+    prompt "Target board"
+    default UPSA_BOARD_REV_A
+    help
+        Selects the pin map and peripheral set.
+
+        Rev A is the reference target: it is what the hardware design, the
+        pin map and the feature set are built around. The Freenove devkit is
+        a development fallback so firmware can be built and run before Rev A
+        boards exist, and it is missing hardware Rev A has -- notably the
+        VBUS load switch and the status LEDs.
+
+        Application code must never reference a GPIO number directly. Use
+        the BOARD_* macros from board.h.
+
+config UPSA_BOARD_REV_A
+    bool "ups-adaptor Rev A PCB (reference target)"
+
+config UPSA_BOARD_FREENOVE
+    bool "Freenove ESP32-S3-WROOM devkit (development fallback)"
+
+endchoice
+
+config UPSA_HAVE_OLED
+    bool "Enable optional I2C OLED status display"
+    default n
+    help
+        The web interface is the primary UI. The OLED is a debug convenience
+        and is the single most expensive item on the BOM, so it is off by
+        default. Rev A keeps the footprint; firmware does not require it.
+
+config UPSA_VBUS_CYCLE_MS
+    int "VBUS off-time when power-cycling a wedged UPS interface (ms)"
+    default 2000
+    range 250 10000
+
+endmenu
