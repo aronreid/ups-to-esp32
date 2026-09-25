@@ -1,0 +1,60 @@
+* SPDX-License-Identifier: GPL-3.0-or-later
+* ups-adaptor Rev A -- two-transistor auto-reset circuit
+*
+* Q1: B=DTR via R1, E=RTS, C=EN
+* Q2: B=RTS via R2, E=DTR, C=IO0
+*
+* The claim under test is the cross-coupling: when DTR and RTS sit at the SAME
+* level, neither transistor has base-emitter bias, so neither EN nor IO0 is
+* pulled down. That is what stops opening a serial monitor from resetting the
+* board. Only opposing levels assert a line.
+
+.model QMMBT3904 NPN(Is=6.734f Xti=3 Eg=1.11 Vaf=74.03 Bf=416.4 Ne=1.259
++ Ise=6.734f Ikf=66.78m Xtb=1.5 Br=.7371 Nc=2 Isc=0 Ikr=0 Rc=1 Cjc=3.638p
++ Mjc=.3085 Vjc=.75 Fc=.5 Cje=4.493p Mje=.2593 Vje=.75 Tr=239.5n Tf=301.2p
++ Itf=.4 Vtf=4 Xtf=2 Rb=10)
+
+V33   n3v3 0 DC 3.3
+VDTR  dtr  0 DC 0
+VRTS  rts  0 DC 0
+
+* EN: 10k pull-up and the 1uF that also debounces the RESET button
+R3    n3v3 en   10k
+C1    en   0    1u
+* IO0: 10k pull-up
+R4    n3v3 io0  10k
+
+* base resistors
+R1    dtr  q1b  1k
+R2    rts  q2b  1k
+
+* C B E
+Q1    en   q1b  rts QMMBT3904
+Q2    io0  q2b  dtr QMMBT3904
+
+.control
+set noaskquit
+echo "state dtr rts en io0"
+* both low -- idle, nothing asserted
+alter VDTR dc = 0
+alter VRTS dc = 0
+op
+echo "both_low $&v(dtr) $&v(rts) $&v(en) $&v(io0)"
+* both high -- a serial monitor asserting both; must NOT reset
+alter VDTR dc = 3.3
+alter VRTS dc = 3.3
+op
+echo "both_high $&v(dtr) $&v(rts) $&v(en) $&v(io0)"
+* DTR high, RTS low -- Q1 conducts, EN pulled low = RESET
+alter VDTR dc = 3.3
+alter VRTS dc = 0
+op
+echo "dtr_only $&v(dtr) $&v(rts) $&v(en) $&v(io0)"
+* RTS high, DTR low -- Q2 conducts, IO0 pulled low = BOOT
+alter VDTR dc = 0
+alter VRTS dc = 3.3
+op
+echo "rts_only $&v(dtr) $&v(rts) $&v(en) $&v(io0)"
+quit
+.endc
+.end
