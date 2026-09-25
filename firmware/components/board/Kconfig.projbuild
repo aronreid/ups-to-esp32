@@ -1,0 +1,55 @@
+menu "ups-adaptor board"
+
+choice UPSA_BOARD
+    prompt "Target board"
+    default UPSA_BOARD_REV_A
+    help
+        Selects the pin map and peripheral set.
+
+        Rev A is the reference target: it is what the hardware design, the
+        pin map and the feature set are built around. The Freenove devkit is
+        a development fallback so firmware can be built and run before Rev A
+        boards exist, and it is missing hardware Rev A has -- notably the
+        VBUS load switch and the status LEDs.
+
+        Application code must never reference a GPIO number directly. Use
+        the BOARD_* macros from board.h.
+
+config UPSA_BOARD_REV_A
+    bool "ups-adaptor Rev A PCB (reference target)"
+
+config UPSA_BOARD_FREENOVE
+    bool "Freenove ESP32-S3-WROOM devkit (development fallback)"
+
+endchoice
+
+# Which boards can carry a display at all. Not user-visible: it is a fact about
+# the board, and UPSA_HAVE_OLED is hidden entirely where it is false.
+#
+# NOT REV A. Its OLED header reads 3V3, GND, SDA, SCL from pin 1; the modules
+# people buy read GND, VCC, SCL, SDA, so one seated in it is powered backwards.
+# That happened to the first Rev A board on 2026-09-25: the board got hot and
+# the module died. Offering a display build for Rev A invites a repeat. A later
+# revision whose header matches the modules adds itself here.
+config UPSA_BOARD_OLED_OK
+    bool
+    default y if UPSA_BOARD_FREENOVE
+
+config UPSA_HAVE_OLED
+    bool "Enable optional I2C OLED status display"
+    depends on UPSA_BOARD_OLED_OK
+    default n
+    help
+        The web interface is the primary UI. The OLED is a debug convenience
+        and is the single most expensive item on the BOM, so it is off by
+        default, and firmware does not require it.
+
+        Only offered on boards whose header takes a standard module as
+        seated. Rev A's does not; see UPSA_BOARD_OLED_OK.
+
+config UPSA_VBUS_CYCLE_MS
+    int "VBUS off-time when power-cycling a wedged UPS interface (ms)"
+    default 2000
+    range 250 10000
+
+endmenu
