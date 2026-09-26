@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Shared defaults for both targets. Board choice lives in menuconfig
+# (ups-adaptor board), not here, so one tree builds both.
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# 4MB flash, dual OTA. N4 has no PSRAM -- do not enable SPIRAM.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# The S3's single USB PHY is dedicated to the USB-A host port, so the console
+# stays on UART0 via the CH340C -- never USB-Serial-JTAG. The usb_host
+# component needs no Kconfig switch; depending on it in CMakeLists is enough.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# No Bluetooth. Setup is a browser on the provisioning SoftAP; BLE provisioning
+# would require a phone app, which is the thing this device deliberately avoids.
+# Explicit rather than relying on the default, so the controller's flash and
+# ~30KB of SRAM stay reclaimed if anything later pulls in a BT dependency.
+CONFIG_BT_ENABLED=n
+
+# A closet device must reboot itself rather than hang.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_INT_WDT=y
+
+# Web UI needs a few concurrent sockets alongside NUT clients.
+CONFIG_LWIP_MAX_SOCKETS=16
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# --- OTA from GitHub releases -----------------------------------------------
+# Rollback is what makes an unattended update safe: a new image boots on trial
+# and the bootloader reverts unless it confirms itself. A device behind a UPS in
+# a closet cannot be recovered with a cable.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+# GitHub is HTTPS and redirects release assets to a second host, so the roots
+# have to come from somewhere. The bundle costs flash and avoids pinning a
+# certificate that expires.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+# The TLS handshake needs a bigger stack than the default HTTP client task.
+CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=n

@@ -1,0 +1,271 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Builds both board targets on a version tag and attaches them to the release.
+#
+# The asset NAMES are load-bearing: firmware/components/ota/ota.c asks GitHub
+# for the latest release and installs the asset called
+# ups-adaptor-<target>.bin, where target comes from BOARD_OTA_TARGET. The two
+# boards have different pin maps -- a Rev A image on a devkit drives a VBUS
+# enable that is not there, and a devkit image on Rev A never raises VBUS, so
+# the UPS never enumerates. Renaming these silently breaks updates, or worse,
+# installs the wrong one.
+#
+# Devices follow releases, not branches: publishing one is the only thing that
+# moves them, so a push that was never meant for hardware cannot reach any.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build and publish
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # the app version comes from git describe
+
+      # ESP-IDF stamps the image with `git describe`. In a container the checkout
+      # belongs to another uid and git refuses to read it as "dubious
+      # ownership", which silently stamps the image "1" instead of the tag --
+      # and a device comparing "1" to the tag would re-offer this release
+      # forever.
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # Each target gets its OWN build directory, and names its SDKCONFIG_DEFAULTS
+      # explicitly. Both matter. ESP-IDF reads SDKCONFIG_DEFAULTS only when
+      # generating sdkconfig, so a leftover sdkconfig makes the next target
+      # inherit the previous board -- and because CMake CACHES SDKCONFIG_DEFAULTS
+      # per build directory, deleting sdkconfig while reusing a directory
+      # regenerates the SAME config from the cached value. Relying on Rev A
+      # being built first, into a fresh directory, would make the correctness of
+      # a shipped image depend on the ORDER of two steps in this file.
+      # That shipped: ups-adaptor-freenove.bin was a Rev A build under the
+      # devkit's name, a devkit installed it, and came up believing it had a
+      # load switch on GPIO4.
+      - name: build Rev A
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          rm -f firmware/sdkconfig
+          idf.py -C firmware -B firmware/build \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva \
+                 -DPROJECT_VER="${GITHUB_REF_NAME}" build
+          cp firmware/build/ups-adaptor-reva.bin ups-adaptor-reva.bin
+          # A SINGLE-FILE image, flashable at 0x0 with no offsets to get wrong.
+          # The app binary alone is only installable onto a board that already
+          # has a bootloader, a partition table and an otadata -- which a board
+          # fresh from the fab does not. Publishing only the app means the
+          # documented "first flash" command produces a board that does
+          # nothing, and the three files needed to fix that are not in the
+          # release at all.
+          python -m esptool --chip esp32s3 merge_bin \
+            -o ups-adaptor-reva-full.bin \
+            --flash_mode dio --flash_size 4MB --flash_freq 80m \
+            0x0     firmware/build/bootloader/bootloader.bin \
+            0x8000  firmware/build/partition_table/partition-table.bin \
+            0xf000  firmware/build/ota_data_initial.bin \
+            0x20000 firmware/build/ups-adaptor-reva.bin
+
+      # Gates. Each one exists because its absence shipped something that would
+      # have needed a person and a cable to recover. They FAIL the release
+      # rather than warn: a warning in a log nobody reads is not a gate.
+      - name: gate -- rollback must be compiled in
+        shell: bash
+        run: |
+          if ! grep -q "^CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y" firmware/sdkconfig; then
+            echo "::error::rollback is NOT enabled in the generated sdkconfig."
+            echo "::error::Without it a bad image cannot revert, and this project"
+            echo "::error::has already shipped two images that boot-looped."
+            exit 1
+          fi
+          echo "rollback: enabled"
+
+      - name: gate -- no bench-only options in a release
+        shell: bash
+        run: |
+          # UPSA_REVA_OLED_VCC_FIRST drives a display on Rev A, which is safe
+          # only with a VCC-first module. Shipped, it would invite a customer
+          # to plug in a standard module -- which Rev A powers backwards.
+          if grep -q "^CONFIG_UPSA_REVA_OLED_VCC_FIRST=y" firmware/sdkconfig; then
+            echo "::error::a release image has the bench-only Rev A display option set"
+            exit 1
+          fi
+          echo "no bench-only options"
+
+      - name: gate -- the image must fit with room to grow
+        shell: bash
+        run: |
+          slot=$((0x1F0000))
+          for f in ups-adaptor-reva.bin; do
+            sz=$(stat -c%s "$f")
+            pct=$((sz * 100 / slot))
+            echo "$f: $sz bytes, ${pct}% of the $slot-byte slot"
+            # 80% is the line: an OTA writes the OTHER slot, so an image that
+            # nearly fills one still installs -- but nothing is left for the
+            # growth that put it there.
+            if [ "$pct" -ge 80 ]; then
+              echo "::error::$f fills ${pct}% of its partition"; exit 1
+            fi
+          done
+
+      - name: gate -- each image must BE the board it is named for
+        shell: bash
+        run: |
+          # One board is built today, and this still earns its place: a Rev B
+          # target will be the second, and v0.02c shipped one board's build
+          # under the other's name when there were two. Identity is checked from two independent places -- the
+          # app descriptor's project name, which the OTA client also enforces
+          # on-device, and the BOARD_NAME string the firmware prints.
+          fail=0
+          for pair in "ups-adaptor-reva.bin:ups-adaptor-reva:UPS to ESP32 Module Rev A"; do
+            f="${pair%%:*}"; rest="${pair#*:}"; want="${rest%%:*}"; board="${rest#*:}"
+            name=$(python3 -c "import sys;d=open(sys.argv[1],'rb').read();print(d[0x50:0x70].split(b'\0')[0].decode())" "$f")
+            echo "  $f: project_name=$name"
+            [ "$name" = "$want" ] || { echo "::error::$f declares '$name', expected '$want'"; fail=1; }
+            grep -qa "$board" "$f" || { echo "::error::$f does not contain '$board'"; fail=1; }
+          done
+          [ "$fail" -eq 0 ] || exit 1
+          echo "each image is the board it claims to be"
+
+      # The version a device compares against is the one baked into the image.
+      # If it does not match the tag, every device installs this release and
+      # still believes it needs it -- offered it forever.
+      #
+      # The builds above stamp it from the tag itself (-DPROJECT_VER), not from
+      # `git describe`. v0.06 was tagged on the commit v0.06-rc2 was already on,
+      # describe picked the rc tag, and both images shipped saying v0.06-rc2.
+      #
+      # And this check FAILS when it cannot read a version. It used to pass: it
+      # grepped esptool for "Project version" (esptool prints "App version")
+      # in firmware/build/ups-adaptor.bin (renamed long ago), read nothing,
+      # and treated nothing as a match -- so it had never checked anything,
+      # and it waved v0.06 through. The descriptor is now read directly from
+      # each PUBLISHED file: esp_app_desc_t sits right after the 24-byte image
+      # header and the first 8-byte segment header, magic 0xABCD5432, version
+      # at +16 and project name at +48, 32 bytes each.
+      - name: check each image's version matches the tag
+        shell: bash
+        run: |
+          python3 - "${GITHUB_REF_NAME}" ups-adaptor-reva.bin <<'PY'
+          import struct, sys
+          tag, bad = sys.argv[1], 0
+          for f in sys.argv[2:]:
+              d = open(f, 'rb').read()
+              magic = struct.unpack_from('<I', d, 32)[0] if len(d) > 112 else 0
+              ver = d[48:80].split(b'\0')[0].decode(errors='replace') if magic == 0xABCD5432 else ''
+              print(f"{f}: tag={tag} image={ver or 'UNREADABLE'}")
+              if ver != tag:
+                  print(f"::error::{f} says '{ver or 'unreadable'}', tag is '{tag}'. Devices "
+                        "compare the two, so every board would be offered this forever.")
+                  bad = 1
+          sys.exit(bad)
+          PY
+
+      # A tag containing -rc is published as a PRERELEASE. GitHub's
+      # /releases/latest excludes prereleases, and that is the endpoint every
+      # device asks -- so a release candidate is invisible to the fleet by
+      # construction, and can be flashed to a bench board by hand without any
+      # risk of a field device taking it.
+      - name: is this a release candidate?
+        id: rc
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            *-rc*) echo "pre=true"  >> "$GITHUB_OUTPUT"; echo "release candidate: devices will NOT see this";;
+            *)     echo "pre=false" >> "$GITHUB_OUTPUT"; echo "production release: every device will be offered this";;
+          esac
+
+      # Checksums, so a download can be checked rather than trusted. The OTA
+      # client verifies the image's own descriptor before it writes a byte, but
+      # someone flashing by hand over USB has nothing to check against.
+      - name: checksums
+        shell: bash
+        run: |
+          sha256sum ups-adaptor-*.bin > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # The release page's text, and what a board's update card shows. The
+      # annotated tag's own message goes under "## What changed" -- the board
+      # abridges the bullets there (firmware/components/ota/ota_notes.c) and
+      # links here for the rest -- then the fixed instructions below it.
+      #
+      # generate_release_notes is off: the public repository is one orphan
+      # commit per publish, so GitHub's generated changelog is always a single
+      # useless line, and every byte of this body is also a byte a board must
+      # download and parse on each check.
+      - name: release notes from the tag
+        shell: bash
+        run: |
+          # actions/checkout can leave a tag that triggered the run as a
+          # lightweight ref; fetch the annotated object so its message exists.
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          notes=$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents:body)')
+          if [ -z "$(printf '%s' "$notes" | grep -E '^[[:space:]]*[-*] ')" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} has no bullet list in its message."
+            echo "::error::The update card shows those bullets; write the release notes in the tag."
+            exit 1
+          fi
+          {
+            printf '## What changed\n\n%s\n\n---\n\n' "$notes"
+            cat <<'STATIC'
+          Firmware for the UPS to ESP32 Module.
+
+          **Updating a board already running:** open its web UI, go to
+          Firmware, and press Check for updates. The board installs the asset
+          for its own target, writes it to the spare slot, and runs it after a
+          restart. If the new image does not come back, the bootloader reverts
+          to the previous one by itself.
+
+          **First flash, over USB — use the `-full` image.** It contains the
+          bootloader, partition table, OTA selector and the application, and
+          goes to offset 0 with nothing to get wrong:
+
+          ```
+          esptool.py --chip esp32s3 write_flash 0x0 ups-adaptor-reva-full.bin
+          ```
+
+          A board fresh from the fab has none of those things, so the plain
+          application binary is not enough on its own.
+
+          **The plain `.bin` files are the application only**, at offset
+          `0x20000`. They are what the OTA client downloads, and what to use
+          if you are replacing the application on a board that is already
+          running.
+
+          `ups-adaptor-reva*` is for the Rev A board. Every image declares its
+          board in its app descriptor, and a device refuses anything that is
+          not its own.
+
+          `SHA256SUMS.txt` covers every binary here.
+          STATIC
+          } > release-notes.md
+          # Boards on v0.06 and earlier read GitHub's whole release response
+          # into 16 KB, and a response that does not fit fails to parse -- they
+          # would stop seeing updates at all, including the one that fixes it.
+          # The rest of the response is about 8 KB; the notes must leave room.
+          sz=$(wc -c < release-notes.md)
+          echo "release notes: $sz bytes"
+          if [ "$sz" -gt 5000 ]; then
+            echo "::error::release notes are $sz bytes; keep them under 5000 so older boards can still read the release"
+            exit 1
+          fi
+
+      - name: publish
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ steps.rc.outputs.pre }}
+          files: |
+            ups-adaptor-reva.bin
+            ups-adaptor-reva-full.bin
+            SHA256SUMS.txt
+          body_path: release-notes.md
