@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>ups-adaptor</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+         color: #16202b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; height: 297mm; display: flex; flex-direction: column; }
+
+  header { background: #0e1a26; color: #fff; padding: 13mm 14mm 10mm; position: relative; }
+  header:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0;
+                 height: 3px; background: linear-gradient(90deg,#f5a623 0%,#f5a623 22%,#1f4e6b 22%); }
+  h1 { font-size: 34pt; letter-spacing: -1.2px; font-weight: 700; }
+  h1 span { color: #f5a623; }
+  .tag { font-size: 13pt; color: #9fb4c7; margin-top: 3mm; font-weight: 300; }
+  .badge { position: absolute; top: 13mm; right: 14mm; border: 1px solid #f5a623;
+           color: #f5a623; font-size: 7.5pt; letter-spacing: 1.4px; padding: 2mm 3mm;
+           border-radius: 2px; text-transform: uppercase; }
+
+  .hero { display: flex; gap: 6mm; padding: 8mm 14mm 4mm; align-items: center; }
+  .hero img { width: 112mm; margin-left: -4mm; filter: drop-shadow(0 4mm 6mm rgba(14,26,38,.28)); }
+  .lead { font-size: 10pt; line-height: 1.55; color: #33465a; }
+  .lead b { color: #0e1a26; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; padding: 4mm 14mm; }
+  .card { border: 1px solid #dfe6ec; border-radius: 3px; padding: 4mm; }
+  .card h3 { font-size: 9.5pt; color: #0e1a26; margin-bottom: 1.5mm; }
+  .card p { font-size: 8pt; line-height: 1.45; color: #55697d; }
+  .card .k { color: #f5a623; font-size: 8pt; font-weight: 700; letter-spacing: .5px; }
+
+  .specs { padding: 3mm 14mm 0; }
+  .specs h2 { font-size: 11pt; color: #0e1a26; border-bottom: 2px solid #f5a623;
+              display: inline-block; padding-bottom: 1mm; margin-bottom: 3mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  td { padding: 1.5mm 0; border-bottom: 1px solid #eef2f6; vertical-align: top; }
+  td.l { color: #7d8fa1; width: 33%; }
+  td.v { color: #16202b; }
+  .cols { display: flex; gap: 8mm; }
+  .cols > div { flex: 1; }
+
+  footer { margin-top: auto; background: #f4f7f9; padding: 5mm 14mm;
+           font-size: 7.5pt; color: #6b7d8f; display: flex; justify-content: space-between;
+           border-top: 1px solid #dfe6ec; }
+  footer b { color: #0e1a26; }
+</style></head><body><div class="page">
+
+<header>
+  <div class="badge">Rev A &middot; pre-production</div>
+  <h1>ups&#8209;<span>adaptor</span></h1>
+  <div class="tag">Your UPS on the network. No PC required.</div>
+</header>
+
+<div class="hero">
+  <img src="../docs/img/board-hero.png" alt="board">
+  <div class="lead">
+    A USB&#8209;only UPS is invisible to everything on your network. It needs a computer
+    plugged into it, running all the time, just to say &ldquo;the power is out&rdquo;.<br><br>
+    <b>ups&#8209;adaptor is that computer, shrunk to 36&nbsp;&times;&nbsp;58&nbsp;mm.</b>
+    It speaks <b>NUT on TCP&nbsp;3493</b> &mdash; the protocol Home&nbsp;Assistant, Synology,
+    TrueNAS, unraid and <code>upsmon</code> already understand &mdash; so nothing needs a
+    plugin, a bridge or a driver.<br><br>
+    Plug the UPS into the USB&#8209;A port, power the board from USB&#8209;C, and it
+    appears on your network as <b>ups&#8209;adaptor.local</b>.
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="k">GENERIC BY DESIGN</div>
+    <h3>Not built for one model</h3>
+    <p>Parses the USB HID Power Device descriptor at runtime rather than hard&#8209;coding a
+       UPS. Whatever your UPS reports, it forwards. Validated on a real APC Back&#8209;UPS
+       RS&nbsp;1000G: 86&nbsp;fields decoded into 20&nbsp;NUT variables, no vendor quirk
+       needed.</p></div>
+  <div class="card"><div class="k">RECOVERS ITSELF</div>
+    <h3>Power&#8209;cycles a wedged UPS</h3>
+    <p>VBUS to the UPS runs through a current&#8209;limited load switch on a GPIO. When a
+       UPS interface locks up &mdash; and they do &mdash; firmware cycles its power instead
+       of someone walking to the closet.</p></div>
+  <div class="card"><div class="k">RECONNECTS</div>
+    <h3>Survives the network</h3>
+    <p>Wi&#8209;Fi drops are handled with a non&#8209;blocking retry, not a watchdog reboot.
+       The board also survives the UPS being unplugged, replugged and power&#8209;cycled
+       mid&#8209;session without a reset.</p></div>
+</div>
+
+<div class="specs">
+  <h2>Technical specification</h2>
+  <div class="cols">
+    <div><table>
+      <tr><td class="l">Controller</td><td class="v">ESP32&#8209;S3&#8209;WROOM&#8209;1&#8209;N4<br>dual&#8209;core Xtensa LX7, 4&nbsp;MB flash</td></tr>
+      <tr><td class="l">Wireless</td><td class="v">Wi&#8209;Fi 802.11&nbsp;b/g/n, 2.4&nbsp;GHz<br>PCB antenna, Bluetooth disabled</td></tr>
+      <tr><td class="l">UPS port</td><td class="v">USB&#8209;A host, USB&nbsp;2.0 full speed<br>12&nbsp;Mbps, HID Power Device class</td></tr>
+      <tr><td class="l">VBUS to UPS</td><td class="v">Switched, 1&nbsp;A current limit<br>fault flag to firmware, 100&nbsp;&micro;F bulk</td></tr>
+      <tr><td class="l">Power &amp; console</td><td class="v">USB&#8209;C: 5&nbsp;V in, programming and<br>serial on one connector</td></tr>
+      <tr><td class="l">Protection</td><td class="v">ESD array on both USB ports<br>2&nbsp;A resettable polyfuse</td></tr>
+    </table></div>
+    <div><table>
+      <tr><td class="l">Primary output</td><td class="v">NUT server, TCP&nbsp;3493<br>read&#8209;only protocol subset</td></tr>
+      <tr><td class="l">Secondary output</td><td class="v">MQTT with Home Assistant<br>discovery</td></tr>
+      <tr><td class="l">Setup</td><td class="v">Web UI over Wi&#8209;Fi; SoftAP for<br>first&#8209;run provisioning</td></tr>
+      <tr><td class="l">Discovery</td><td class="v">mDNS &mdash; ups&#8209;adaptor.local</td></tr>
+      <tr><td class="l">Expansion</td><td class="v">4&nbsp;&times;&nbsp;GPIO + 3V3 + 5V + GND<br>I&sup2;C header for a 128&times;64 OLED</td></tr>
+      <tr><td class="l">Board</td><td class="v">36&nbsp;&times;&nbsp;58&nbsp;mm, 2&nbsp;layer<br>surface mount, case&#8209;clip mounting</td></tr>
+    </table></div>
+  </div>
+</div>
+
+<footer>
+  <div><b>Open hardware &amp; firmware.</b> GPL&#8209;3.0&#8209;or&#8209;later &mdash; KiCad sources, ESP&#8209;IDF firmware and the test harness are all in the repository.</div>
+  <div style="text-align:right"><b>Rev&nbsp;A</b><br>Pre&#8209;production. Not yet fabricated.</div>
+</footer>
+
+</div></body></html><!--
+  Source for docs/ups-adaptor-onepager.pdf. Regenerate with:
+
+    kicad-cli pcb render -o docs/img/board-hero.png --side top \
+        --rotate "-25,0,32" --perspective --quality high \
+        -w 2200 -h 1600 --background transparent \
+        hardware/kicad/ups-adaptor.kicad_pcb
+
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+        --disable-gpu --no-pdf-header-footer \
+        --print-to-pdf=docs/ups-adaptor-onepager.pdf \
+        "file://$PWD/tools/onepager.html"
+
+  Every number on the sheet comes from the repository, not from copywriting:
+  86 fields / 20 NUT variables are what tools/test/test_parser.py asserts against
+  the real EC850LCD descriptor capture, 36 x 58 mm and the 100uF bulk are what
+  the board actually carries, and the "Rev A, pre-production, not yet fabricated"
+  line stays until a board has been built and tested. Do not quietly drop it.
+-->
