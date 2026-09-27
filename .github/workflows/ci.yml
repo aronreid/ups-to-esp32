@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Two jobs, both of which run without a board, without KiCad and without a UPS.
+#
+# WHAT IS NOT HERE, and why. Nine of the project's checks need KiCad itself --
+# ERC, DRC, the antenna keepout, the differential pairs, the JLCPCB limits, the
+# ground-fill audit -- either through `kicad-cli` or through the `pcbnew` module,
+# which ships only inside a KiCad install and cannot be pip-installed. The
+# official KiCad container images stop at 9.0 while this project's board files
+# are KiCad 10, so running them there would fail on the file format rather than
+# on the design. They stay a local gate: `tools/test/run-all.sh` runs everything.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: design and firmware checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Each of these reads the generated design files or the firmware source
+      # and asserts a property the project depends on. No hardware involved.
+      - name: power budget and thermals
+        run: python3 tools/test/test_power.py
+      - name: BOM and placement match the schematic
+        run: python3 tools/test/test_bom.py
+      # Skips here rather than failing: it compares the CPL against KiCad's raw
+      # position export, which is gitignored by design (uploading THAT file in
+      # place of the real CPL fits eight parts the wrong way round). It runs
+      # for real after tools/pack-fab.sh.
+      - name: placement angles are accounted for
+        run: python3 tools/test/test_rotation.py
+      - name: rotation audit
+        run: python3 tools/test/check_cpl_rotation.py
+      - name: fab package is current
+        run: python3 tools/test/test_fab.py
+      - name: project design rules intact
+        run: python3 tools/test/test_project.py
+      - name: board pin map compiles, unselected board refused
+        run: python3 tools/test/test_board_targets.py
+
+      # Compiles the firmware's HID parser for the host and runs it against a
+      # real UPS report descriptor committed under captures/.
+      - name: HID parser against a real descriptor
+        run: python3 tools/test/test_parser.py
+      - name: descriptor regression
+        run: python3 tools/test/test_descriptor.py
+      # The update card's "what changed" list is abridged on the board from a
+      # hand-written tag message; the abridging is compiled and run here.
+      - name: release notes abridging
+        run: python3 tools/test/test_release_notes.py
+      - name: published schematic matches the design
+        run: python3 tools/test/test_schematic_docs.py
+      # No legacy Tripp Lite has been on the bench: this is the evidence the
+      # port of NUT's decoding is right, against the replies NUT documents.
+      - name: Tripp Lite legacy protocol
+        run: python3 tools/test/test_tripplite_legacy.py
+      - name: Prometheus /metrics format and naming
+        run: python3 tools/test/test_metrics.py
+
+  firmware:
+    name: firmware builds (ESP-IDF ${{ matrix.idf }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        idf: ['v5.4']
+    container: espressif/idf:${{ matrix.idf }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # rm -f firmware/sdkconfig: ESP-IDF reads SDKCONFIG_DEFAULTS only when
+      # generating it, so a leftover file would build whatever board it names.
+      - name: build for the Rev A board
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          rm -f firmware/sdkconfig
+          idf.py -C firmware -B firmware/build \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva build
+      - name: the build must be Rev A
+        shell: bash
+        run: |
+          grep -qa "UPS to ESP32 Module Rev A" firmware/build/ups-adaptor-reva.bin || {
+            echo "::error::the Rev A build is not Rev A"; exit 1; }
+          echo "built as Rev A"
