@@ -1,0 +1,1270 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Single page, no external requests. This device is often on a network with
+     no internet route, and every byte lives in the app partition, so there is
+     no framework, no web font and no CDN here on purpose.
+
+     One look: cards, tiles and an icon (what was skin "b"). A second skin was
+     dropped to save flash and keep one design to maintain.
+
+     Rules this page follows:
+     - Say what is happening in words. OL and OB are NUT's vocabulary, not a
+       person's. The codes stay, small, for anyone comparing with upsc.
+     - Offer only what THIS UPS can do, from the caps bitmask firmware
+       discovers in the report descriptor.
+     - Never show a number the UPS did not report. Absent is absent. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme:dark)">
+<title>UPS to ESP32 Module</title>
+<style>
+:root{
+  --bg:#fbfbfa;--fg:#14171a;--dim:#6d7680;--line:#e6e7e4;--card:#fff;
+  --ok:#2f7d32;--warn:#b26a00;--bad:#c02a2a;--accent:#3f7fb0;
+  --shadow:none;--radius:10px;--gap:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#141517;--fg:#e9eaec;--dim:#8d949c;--line:#272a2e;--card:#1b1d20;
+  --ok:#57c07a;--warn:#e0a13a;--bad:#e06a6a;--accent:#6aa9dc;
+}}
+body{--bg:#f3f5f7;--card:#fff;--line:#e6ebf0;--radius:14px;--gap:10px;
+  --shadow:0 1px 2px rgba(20,30,45,.06),0 4px 14px rgba(20,30,45,.05)}
+@media(prefers-color-scheme:dark){body{--bg:#111316;--card:#191c20;--line:#262a2f;
+  --shadow:0 1px 2px rgba(0,0,0,.4)}}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);padding:20px 16px 40px;
+  font:15px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif}
+main{max-width:680px;margin:0 auto}
+h1{font-size:17px;margin:0;letter-spacing:-.2px}
+h2{font-size:16px;margin:0;font-weight:650;letter-spacing:-.1px}
+.sub{color:var(--dim);font-size:12.5px}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.hdr-r{display:flex;align-items:center;gap:10px;flex:none}
+.fresh{font-size:11px;color:var(--dim);white-space:nowrap}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:var(--gap);box-shadow:var(--shadow)}
+
+/* ---- status ---- */
+.status{display:flex;gap:12px;align-items:flex-start}
+.status{border-left:4px solid var(--st,var(--dim))}
+.ico{width:30px;height:30px;border-radius:9px;flex:none;display:flex;align-items:center;
+  justify-content:center;background:color-mix(in srgb,var(--st,var(--dim)) 14%,transparent)}
+
+.codes{margin-top:8px}
+.flag{display:inline-block;margin-right:5px;padding:2px 7px;border-radius:99px;font-size:10.5px;
+  font-weight:600;background:var(--line);color:var(--dim);letter-spacing:.3px}
+
+/* ---- hero + gauge ---- */
+.k{font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim)}
+.heroline{display:flex;align-items:baseline;gap:9px;margin-top:2px}
+.heroline b{font-size:42px;line-height:1;font-weight:600;letter-spacing:-1.6px;
+  font-variant-numeric:tabular-nums}
+.heroline span{color:var(--dim);font-size:13px}
+.gauge{height:8px;border-radius:99px;background:var(--line);margin-top:11px;overflow:hidden}
+.gauge i{display:block;height:100%;width:0;border-radius:99px;background:var(--st,var(--dim));
+  transition:width .6s ease,background .6s ease}
+
+/* ---- stats ---- */
+.group+.group{margin-top:14px}
+.grp{margin-bottom:6px}
+
+.items{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.stat{background:var(--bg);border-radius:11px;padding:9px 11px}
+.sk{display:block;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+.sv{display:block;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:1px}
+.sv small{font-size:11px;font-weight:500;color:var(--dim)}
+.sv em{font-style:normal;font-size:11px;font-weight:600}
+
+/* ---- chart ---- */
+svg.chart{width:100%;height:78px;display:block;margin-top:8px;overflow:visible}
+.legend{font-size:11.5px;color:var(--dim);margin-top:5px}
+
+/* ---- controls ---- */
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:6px;max-width:320px}
+.seg button{flex:1;border:0;background:transparent;color:var(--dim);font:inherit;font-size:12px;
+  padding:7px 0;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:#fff;font-weight:600}
+button.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;
+  padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;margin:8px 6px 0 0}
+/* Skin A drops the button fill -- but NOT on the primary or danger buttons,
+ * whose text colour is chosen against that fill. Without the :not() they came
+ * out white-on-white. */
+
+button.btn.pri{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+/* Password strength: a bar and a word under a new-password box. */
+.pw-meter{display:flex;align-items:center;gap:8px;margin:4px 0 2px;font-size:12px;color:var(--dim)}
+.pw-meter i{flex:1;height:4px;border-radius:2px;background:var(--line);position:relative;overflow:hidden}
+.pw-meter i::after{content:"";position:absolute;inset:0;width:var(--w,0%);background:var(--c,var(--line));transition:width .2s}
+.pw-meter span{min-width:5.5em;text-align:right}
+button.btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button.link{border:0;background:none;color:var(--dim);font:inherit;font-size:11.5px;
+  text-decoration:underline;cursor:pointer;padding:0}
+.note{color:var(--dim);font-size:12.5px;margin:6px 0 0}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+label{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:inherit;font-size:14px}
+input[type=number]{width:96px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.danger-card{border-color:color-mix(in srgb,var(--bad) 35%,var(--line))}
+summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"change";margin-left:auto;font-size:11.5px;color:var(--dim);text-decoration:underline}
+details[open] summary::after{content:"close"}
+#wifi-sum,#nut-sum{font-size:13.5px}
+
+/* Wi-Fi has two volumes. With no network it is the only thing on the page
+ * that matters, so it moves to the top, opens, and cannot be closed. Once
+ * joined, whoever is reading this page is already on that network, so it
+ * shrinks to one dim line at the bottom. */
+#setup-banner{display:none}
+body.setup #setup-banner{display:block}
+/* Nothing else competes during setup. The update card in particular: it is
+ * red, and the board cannot reach GitHub from its own access point anyway. */
+body.setup #fw{display:none}
+body.setup #wifi-card{border:2px solid var(--accent);border-radius:var(--radius);
+  padding:18px 18px 20px;margin-bottom:18px;background:var(--card);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
+body.setup #wifi-card summary{display:none}
+body.setup #wifi-card h2{font-size:21px;letter-spacing:-.3px;color:var(--fg)}
+body.setup #wifi-card .note{font-size:14px}
+body.setup #wifi-card label{font-size:13px;margin-top:14px}
+body.setup #wifi-card input,body.setup #wifi-card select{font-size:16px;padding:12px}
+body.setup #wifi-card button.btn.pri{width:100%;padding:13px;font-size:15px;margin:18px 0 0;
+  background:var(--accent);border-color:var(--accent);color:#fff}
+/* The join result. The address is the one thing on this page a person must
+ * carry away, so it is the biggest type on it and selectable in one tap. */
+#join:empty{display:none}
+#join{margin-top:14px;padding:14px;border-radius:10px;background:var(--bg);font-size:14px}
+#join.ok{background:color-mix(in srgb,var(--ok) 12%,var(--bg))}
+#join.bad{background:color-mix(in srgb,var(--bad) 12%,var(--bg))}
+#join .addr{display:block;font-size:24px;font-weight:700;letter-spacing:-.4px;margin:6px 0 2px;
+  user-select:all;-webkit-user-select:all;overflow-wrap:anywhere;color:var(--fg);text-decoration:none}
+#join p{margin:8px 0 0}
+#join button.btn.pri{width:100%}
+#wifi-card.quiet:not([open]){background:transparent;border:0;box-shadow:none;padding:4px 2px}
+#wifi-card.quiet:not([open]) summary{font-size:12px;color:var(--dim)}
+#wifi-card.quiet:not([open]) #wifi-sum{font-size:12px}
+
+/* The firmware hero. Loud on purpose when it has something to say, and a
+ * single quiet line when it does not -- an update nobody notices may as well
+ * not exist, and a permanent banner is one people stop seeing. */
+#fw .hero-card{border-radius:var(--radius);padding:16px 18px;margin-bottom:var(--gap);
+  box-shadow:var(--shadow);border:1px solid transparent}
+#fw .hero-card.loud{background:var(--fwbg);border-color:var(--fwbd);color:#fff}
+#fw .hero-card.loud .k{color:rgba(255,255,255,.72)}
+#fw .hero-card.loud .note{color:rgba(255,255,255,.88)}
+#fw .hero-card.loud b{color:#fff}
+/* The loud card paints its own background, so everything on it is white --
+   including the heading. Skin A colours every h2 with --st, the UPS STATUS
+   colour, which is green while the UPS is on mains: without this the title of
+   a red "update available" card rendered green on red, which reads as a
+   broken page rather than an alert. */
+#fw .hero-card.loud h2{color:#fff}
+#fw h2{font-size:17px;margin:0 0 2px}
+#fw .row2{display:flex;gap:14px;align-items:flex-start}
+#fw .ico2{width:34px;height:34px;border-radius:10px;flex:none;display:flex;
+  align-items:center;justify-content:center;background:rgba(255,255,255,.16)}
+#fw button.act{background:#fff;color:var(--fwbg);border:0;border-radius:8px;
+  padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px}
+#fw button.ghost2{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);
+  border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;margin-top:10px;margin-left:8px}
+#fw .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.28);margin-top:12px;overflow:hidden}
+#fw .bar i{display:block;height:100%;background:#fff;border-radius:99px;transition:width .5s ease}
+/* Quiet state: one line, no card weight. */
+body.locked main>*:not(.hdr), body.mkauth main>*:not(.hdr){display:none}
+.dbg{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0 0;font-size:12.5px}
+.dbg dt{color:var(--dim)} .dbg dd{margin:0;font-variant-numeric:tabular-nums;word-break:break-all}
+.ipbox{margin:12px 0 4px} .ipbox summary{cursor:pointer;color:var(--dim);font-size:13px}
+.ipbox summary::after{content:none}
+label.chk{display:flex;align-items:center;gap:8px;margin:8px 0} label.chk input{width:auto}
+#fw .calm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  color:var(--dim);font-size:12.5px;padding:2px 2px 10px}
+#fw .calm b{color:var(--fg);font-weight:600}
+#fw .calm button{border:0;background:none;color:var(--dim);font:inherit;font-size:12.5px;
+  text-decoration:underline;cursor:pointer;padding:0}
+#fw .calm label{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer}
+#fw .calm input{width:auto}
+/* Fleet reporting: the same quiet one-line style as the firmware line. */
+#fleet .calm{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  color:var(--dim);font-size:12.5px;padding:0 2px 10px}
+#fleet label{display:flex;align-items:center;gap:6px;margin:0;cursor:pointer}
+#fleet input{width:auto}
+#fleet details{flex-basis:100%}
+#fleet summary{cursor:pointer}
+#fleet summary::after{content:none}
+#dbg-card summary::after{content:"show"} #dbg-card[open] summary::after{content:"hide"}
+/* What changed in the offered release: a few bullets and the way to the rest. */
+#fw .fwnotes{margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.45}
+#fw .fwnotes li+li{margin-top:3px}
+#fw .fwlink{display:inline-block;margin-top:8px;font-size:12.5px;font-weight:600;color:inherit}
+#fw .hero-card.loud .fwnotes{color:rgba(255,255,255,.92)}
+#fw .calm .fwnotes{color:var(--dim);flex-basis:100%;margin-top:2px}
+#fw .calm .fwlink{margin-top:0;color:var(--dim)}
+#fw .fwn{flex-basis:100%}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+  background:var(--line);padding:1px 5px;border-radius:4px}
+.copyable{cursor:pointer}
+.copyable:active{opacity:.6}
+
+/* Addresses and hostnames are longer than a reading and must not clip, so
+ * these tiles get their own smaller type and are allowed to wrap. */
+#nut-fields .sv{font-size:14.5px;line-height:1.35;overflow-wrap:anywhere}
+#nut-fields{grid-template-columns:repeat(auto-fit,minmax(124px,1fr))}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);
+  background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;
+  font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:9}
+#toast.show{opacity:1;transform:translateX(-50%)}
+/* The login box: every visit needs it, once a login exists. */
+#login{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:10;
+  width:calc(100% - 32px);max-width:360px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+#login .row{display:flex;gap:8px;margin-top:14px}
+.opt{margin:14px 0 0;padding:10px 12px;border:1px dashed var(--line);border-radius:8px}
+.opt summary{cursor:pointer;font-size:13px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <div class="hdr">
+    <div><h1>UPS to ESP32 Module</h1><div class="sub" id="sub">connecting…</div></div>
+    <div class="hdr-r">
+      <span class="fresh" id="fresh"></span>
+    </div>
+  </div>
+
+  <section id="fw"></section>
+  <section id="fleet"></section>
+
+  <details class="card" id="nut-card">
+    <summary><span class="k">NUT</span><span id="nut-sum"> </span></summary>
+    <p class="note" style="margin-top:10px">Point Home Assistant, a NAS or <code>upsmon</code>
+      at these. Tap a value to copy it.</p>
+    <div class="items" id="nut-fields"></div>
+    <p class="note" id="nut-example"></p>
+  </details>
+
+  <div class="card status" id="statuscard">
+    <div class="ico" id="ico"></div>
+    <div style="min-width:0">
+      <h2 id="headline">Looking for the UPS…</h2>
+      <p class="sub" id="detail"></p>
+      <div class="codes" id="codes"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="k" id="herok">Battery</div>
+    <div class="heroline"><b id="hero">--</b><span id="heronote"></span></div>
+    <div class="gauge"><i id="gfill"></i></div>
+  </div>
+
+  <div class="card" id="stats"></div>
+
+  <div class="card" id="chart-card" hidden>
+    <div class="k">Last few minutes</div>
+    <svg class="chart" id="chart" viewBox="0 0 300 78" preserveAspectRatio="none"></svg>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="card" id="controls-card" hidden>
+    <div class="k">UPS controls</div>
+    <div id="controls"></div>
+    <p class="note" id="caps-note"></p>
+  </div>
+
+  <div class="card danger-card" id="danger-card" hidden>
+    <div class="k" style="color:var(--bad)">Danger zone</div>
+    <div id="danger"></div>
+  </div>
+
+  <div class="card">
+    <div class="k">Maintenance</div>
+    <p class="note">If the UPS stops responding, power-cycling its USB interface usually
+      recovers it without unplugging anything.</p>
+    <button class="btn" id="reset">Power-cycle UPS link</button>
+  </div>
+
+  <details class="card" id="addr-card" hidden>
+    <summary><span class="k">Address</span><span id="addr-sum"> </span></summary>
+    <p class="note" id="addr-warn" hidden></p>
+    <p class="note">Automatic (DHCP) lets your router choose. A fixed address never changes,
+      which is what a NAS or Home Assistant pointed at this board's IP needs. If the router does
+      not answer from the fixed address, the board goes back to automatic until it restarts, so a
+      typo cannot lose it.</p>
+    <label class="chk"><input type="radio" name="am" id="a-dhcp"> automatic (DHCP)</label>
+    <label class="chk"><input type="radio" name="am" id="a-static"> fixed address</label>
+      <div class="ipf" id="a-fields">
+        <label for="a-ip">Address</label><input id="a-ip" inputmode="decimal" placeholder="e.g. 192.168.x.50">
+        <label for="a-mask">Subnet mask</label><input id="a-mask" inputmode="decimal" value="255.255.255.0">
+        <label for="a-gw">Gateway (your router)</label><input id="a-gw" inputmode="decimal" placeholder="e.g. 192.168.x.1">
+        <label for="a-dns">DNS server <span class="note">(blank: the gateway)</span></label><input id="a-dns" inputmode="decimal">
+      </div>
+    <button class="btn pri" id="a-save">Save and restart</button>
+  </details>
+
+  <details class="card" id="dbg-card" hidden>
+    <summary><span class="k">Debug</span><span id="dbg-sum"> </span></summary>
+    <p class="note">Shown on the project's test boards, or on any board with <code>?debug</code>
+      after its address. <button class="link" id="dbg-copy" type="button">copy all as JSON</button></p>
+    <dl class="dbg" id="dbg"></dl>
+  </details>
+
+  <i id="wifi-home" hidden></i>
+  <details class="card" id="wifi-card">
+    <summary><span class="k">Wi-Fi</span><span id="wifi-sum"> </span></summary>
+    <div id="setup-banner">
+      <h2>Connect this board to your Wi-Fi</h2>
+      <p class="note" id="setup-intro">It has no network yet. Choose yours and this page will
+        show you the board's address on it. Until then you are connected to
+        <b id="apname">its own access point</b>.</p>
+    </div>
+    <div id="join"></div>
+    <div id="wifi-form">
+    <label for="nets">Network <button class="link" id="rescan" type="button">rescan</button></label>
+    <select id="nets"><option value="">tap rescan to list networks…</option></select>
+    <label for="ssid">…or type it (hidden networks)</label>
+    <input id="ssid" autocomplete="off" placeholder="SSID">
+    <label for="pass">Password</label>
+    <input id="pass" type="password" autocomplete="off">
+    <details class="ipbox">
+      <summary>Fixed address (advanced)</summary>
+      <p class="note">Leave this alone unless you need the board at an address that never
+        changes -- for a NAS or Home Assistant pointed at its IP. A reservation in your router
+        does the same job. The board checks your router answers from this address before saving it.</p>
+      <label class="chk"><input type="checkbox" id="w-static"> use a fixed address</label>
+      <div class="ipf" id="w-fields">
+        <label for="w-ip">Address</label><input id="w-ip" inputmode="decimal" placeholder="e.g. 192.168.x.50">
+        <label for="w-mask">Subnet mask</label><input id="w-mask" inputmode="decimal" value="255.255.255.0">
+        <label for="w-gw">Gateway (your router)</label><input id="w-gw" inputmode="decimal" placeholder="e.g. 192.168.x.1">
+        <label for="w-dns">DNS server <span class="note">(blank: the gateway)</span></label><input id="w-dns" inputmode="decimal">
+      </div>
+    </details>
+    <div id="setup-login" hidden>
+      <div class="k" style="margin-top:14px">A login for this board</div>
+      <p class="note">You will need it to open this page and to change anything, and a NAS
+        or Home Assistant needs it to send the UPS commands. Watching the UPS over NUT
+        never needs it. Password at least 8 characters.</p>
+      <label for="su-user">Username</label>
+      <input id="su-user" autocomplete="username">
+      <label for="su-pass">Password</label>
+      <input id="su-pass" type="password" autocomplete="new-password">
+      <div class="pw-meter" id="su-meter"><i></i><span></span></div>
+      <label for="su-pass2">Password again</label>
+      <input id="su-pass2" type="password" autocomplete="new-password">
+    </div>
+    <button class="btn pri" id="save">Save and connect</button>
+    </div>
+  </details>
+
+  <details class="card" id="auth-card">
+    <summary><span class="k">Login</span><span id="auth-sum"> </span></summary>
+    <p class="note" id="auth-explain"></p>
+    <label for="au-user">Username</label>
+    <input id="au-user" autocomplete="username">
+    <label for="au-pass">Password</label>
+    <input id="au-pass" type="password" autocomplete="new-password">
+    <div class="pw-meter" id="au-meter"><i></i><span></span></div>
+    <label for="au-pass2">Password again</label>
+    <input id="au-pass2" type="password" autocomplete="new-password">
+    <p class="note">1-32 and 8-64 characters, no spaces or quotes.</p>
+    <button class="btn pri" id="au-save">Turn on login</button>
+    <span id="auth-on" hidden>
+      <button class="btn" id="au-logout">Log out</button>
+    </span>
+  </details>
+</main>
+<div class="card" id="mkauth" hidden>
+  <div class="k">Create a login for this board</div>
+  <p class="note">This firmware requires one. Until it exists nobody can change anything or
+    send the UPS commands — from this page or over NUT. Watching the UPS over NUT keeps
+    working without it. Password at least 8 characters.</p>
+  <label for="mk-user">Username</label>
+  <input id="mk-user" autocomplete="username">
+  <label for="mk-pass">Password</label>
+  <input id="mk-pass" type="password" autocomplete="new-password">
+  <div class="pw-meter" id="mk-meter"><i></i><span></span></div>
+  <label for="mk-pass2">Password again</label>
+  <input id="mk-pass2" type="password" autocomplete="new-password">
+  <div class="row"><button class="btn pri" id="mk-go">Create login</button></div>
+</div>
+<div class="card" id="login" hidden>
+  <div class="k">Log in</div>
+  <p class="note">This board needs its username and password. Forgot them? Plug a
+    computer into its USB-C port, open the serial console at 115200 and type
+    <code>clear-login</code>: that removes only the login. Or press its BOOT button five
+    times within four seconds, which clears its Wi-Fi too and starts it over in setup.</p>
+  <label for="lg-user">Username</label>
+  <input id="lg-user" autocomplete="username">
+  <label for="lg-pass">Password</label>
+  <input id="lg-pass" type="password" autocomplete="current-password">
+  <div class="row"><button class="btn pri" id="lg-go">Log in</button>
+    <button class="btn" id="lg-cancel">Cancel</button></div>
+</div>
+<div id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+const OL=1, OB=2, LB=4, CHRG=8, DISCHRG=16, RB=32, OVER=64;
+const CAP_TEST=1, CAP_BEEPER=2, CAP_LOWBATT=4, CAP_SHUTDOWN=8;
+const CODES=[[OL,'OL'],[OB,'OB'],[LB,'LB'],[CHRG,'CHRG'],[DISCHRG,'DISCHRG'],[RB,'RB'],[OVER,'OVER']];
+const PROVISIONING = 1;
+
+const ICONS = {
+  ok:   '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+  batt: '<rect x="2" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/>',
+  warn: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  off:  '<path d="M18.4 6.6A9 9 0 1 1 5.6 6.6M12 2v10"/>',
+};
+function icon(name, colour) {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${colour}"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+}
+
+// Worst news first: a low battery matters more than which source feeds the load.
+function explain(u) {
+  const s = u.status;
+  if (!u.attached) return ['bad','off','No UPS detected',
+    'Check the USB cable to the UPS. The board keeps looking.'];
+  if (s & OVER) return ['bad','warn','Overloaded',
+    'The UPS is being asked for more than it can supply. Unplug something.'];
+  if (s & LB) return ['bad','warn','Battery low — shut down now',
+    'The UPS is about to run out. Anything it powers should be shut down.'];
+  if (s & RB) return ['warn','warn','Battery needs replacing',
+    'The UPS reports its battery has failed a test. Do not trust the runtime figure.'];
+  if (s & OB) {
+    const m = u.battery_runtime === null ? null : Math.round(u.battery_runtime / 60);
+    return ['warn','batt','On battery — mains power has failed',
+      m === null ? 'Running from the battery.' : `About ${m} minute${m===1?'':'s'} of runtime left.`];
+  }
+  if (s & DISCHRG) {
+    const t = u.test_result === 5;
+    return ['warn','batt', t ? 'Battery test running' : 'Battery is discharging',
+      t ? 'Mains power is fine. The UPS is testing its battery on purpose and will go back to charging when the test ends.'
+        : 'Mains power is present, but the UPS is drawing from its battery rather than charging it.'];
+  }
+  if (s & OL) return ['ok','ok','Running on mains power',
+    (s & CHRG) ? 'Battery is charging.' : 'Battery is charged and ready.'];
+  return ['warn','warn','Connected, waiting for a status report',
+    'The UPS has not said whether it is on mains or battery yet.'];
+}
+
+/* What tested models really do with a deep test -- measured, see
+   docs/tested-ups.md. The HID tables leave "deep" to the vendor, and every UPS
+   answers "accepted" either way, so this is the only way to warn before. */
+const DEEP_KNOWN=[
+  {mfr:/^CPS$|CyberPower/i, model:/EC850LCD/i, deep:'quick',
+   note:'Not available on this UPS. Tested on two EC850LCDs: its "deep test" is the same few-second self-test, and CyberPower documents only that one. It cannot measure its own runtime.'},
+  {mfr:/American Power|^APC/i, model:/Back-UPS RS 1000G/i, deep:'hides',
+   note:'On this UPS a deep test runs the battery down to about 22% and takes about 40 minutes at light load. While it runs the UPS may keep reporting "on mains, 100%" -- use Power-cycle UPS link to see the truth.'},
+];
+const deepKnown=u=>DEEP_KNOWN.find(k=>k.mfr.test(u.mfr||'')&&k.model.test(u.model||''));
+/* For every other UPS, watch what a deep test actually does. */
+let deepWatch=null;
+function watchDeep(u){
+  const w=deepWatch, el=$('t-deepnote'); if(!w||!el) return;
+  const running=(u.status & DISCHRG) || u.test_result===5, secs=Math.round((Date.now()-w.at)/1000);
+  if(running) w.saw=true;
+  if(w.saw && !running && secs<180){
+    el.textContent=`That deep test finished in about ${secs} seconds, so this UPS ran its short self-test instead: it has no deep test.`;
+    el.hidden=false; deepWatch=null;
+  } else if(!w.saw && secs>75){
+    el.textContent='No sign the deep test started. Some UPSes keep reporting "on mains, 100%" while one runs -- press Power-cycle UPS link, below, to see what it is really doing.';
+    el.hidden=false; deepWatch=null;
+  } else if(w.saw && secs>=180){
+    el.textContent='The deep test is running. It stops by itself when the battery is low, then the UPS recharges.';
+    el.hidden=false; deepWatch=null;
+  }
+}
+const TEST_WORDS={0:'no test recorded',1:'passed',2:'passed, with a warning',3:'failed',
+                  4:'aborted',5:'running now…',6:'never run'};
+const BEEPER_WORDS={0:'unknown',1:'switched off',2:'on',3:'muted for now'};
+const num=(v,u,d=0)=>v===null||v===undefined?null:v.toFixed(d)+u;
+
+// Grouped by circuit rather than one flat grid. Absent readings are dropped,
+// not shown as a permanent dash.
+// Many UPSes recompute runtime only on battery: on mains the figure can sit
+// unchanged for days. After 20 minutes on mains without it moving, say it is
+// the UPS's last report rather than let it pass for a live estimate.
+let curU=null;
+const since=s=>s<7200?`${Math.round(s/60)} min`:s<172800?`${(s/3600).toFixed(1)} h`:`${Math.round(s/86400)} days`;
+function runtimeStale(u){
+  if(!u||u.runtime_age_s==null||u.runtime_age_s<1200) return false;
+  return !(u.status & (OB|DISCHRG));
+}
+const GROUPS = [
+  ['Battery', [
+    ['battery_runtime','Runtime', v => (v>=3600 ? `${Math.floor(v/3600)} h ${Math.round(v%3600/60)} m`
+                                               : `${Math.round(v/60)} min`) +
+       (runtimeStale(curU) ? ` <em style="color:var(--dim)" title="Many UPSes only update runtime on battery">as last reported · unchanged ${since(curU.runtime_age_s)}</em>` : '')],
+    ['battery_voltage','Voltage', v => num(v,' V',1)],
+    ['lowbatt_limit','Warn below', v => num(v,'%')],
+    ['battery_mfr_date','Fitted', v => {
+       const y=(Date.now()-Date.parse(v))/31557600000;
+       if(!isFinite(y)) return v;
+       const c=y>=5?'var(--bad)':y>=3?'var(--warn)':'var(--dim)';
+       return `${v} <em style="color:${c}">${y.toFixed(1)} yr</em>`;
+    }],
+  ]],
+  ['Input', [
+    ['input_voltage','Voltage', v => num(v,' V')],
+    ['input_frequency','Frequency', v => num(v,' Hz',1)],
+  ]],
+  ['Output', [
+    ['output_voltage','Voltage', v => num(v,' V')],
+    ['load','Load', v => num(v,'%')],
+    ['realpower','Power', v => num(v,' W')],
+    ['apparentpower','Apparent', v => num(v,' VA')],
+    ['realpower_nom','UPS rating', v => num(v,' W')],
+  ]],
+];
+
+const HISTORY = 120;                       // 3s a sample: six minutes
+const hist = { batt: [], load: [], vin: [] };
+function push(u){
+  const a=(k,v)=>{hist[k].push(v===null||v===undefined?NaN:v); if(hist[k].length>HISTORY) hist[k].shift();};
+  a('batt',u.battery_charge); a('load',u.load); a('vin',u.input_voltage);
+}
+function path(series, lo, hi, close) {
+  if (series.length < 2) return '';
+  const span=(hi-lo)||1; let d='', pen=false, firstX=null, lastX=0;
+  series.forEach((v,i)=>{
+    if(isNaN(v)){pen=false;return;}
+    const x=(i/(HISTORY-1))*300, y=72-((v-lo)/span)*64;
+    if(firstX===null) firstX=x;
+    lastX=x;
+    d += (pen?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' '; pen=true;
+  });
+  if (close && firstX!==null) d += `L${lastX.toFixed(1)} 76 L${firstX.toFixed(1)} 76 Z`;
+  return d;
+}
+function draw(){
+  if(hist.batt.length<2) return;
+  $('chart-card').hidden=false;
+  const vin=hist.vin.filter(v=>!isNaN(v));
+  const lo=vin.length?Math.min(...vin)-2:0, hi=vin.length?Math.max(...vin)+2:1;
+  const mins=Math.round(hist.batt.length*3/60);
+  $('chart').innerHTML =
+    `<path d="${path(hist.batt,0,100,true)}" fill="color-mix(in srgb,var(--ok) 12%,transparent)" stroke="none"/>`+
+    `<path d="${path(hist.batt,0,100)}" fill="none" stroke="var(--ok)" stroke-width="1.5"/>`+
+    `<path d="${path(hist.load,0,100)}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>`+
+    `<path d="${path(hist.vin,lo,hi)}" fill="none" stroke="var(--dim)" stroke-width="1" stroke-dasharray="3 2"/>`+
+    `<line x1="0" y1="76" x2="300" y2="76" stroke="var(--line)" stroke-width="1"/>`;
+  $('legend').innerHTML =
+    `<b style="color:var(--ok)">—</b> battery % &nbsp; <b style="color:var(--accent)">—</b> load % &nbsp;`+
+    `<b style="color:var(--dim)">- -</b> input${vin.length?' '+lo.toFixed(0)+'–'+hi.toFixed(0)+' V':''}`+
+    ` &nbsp;·&nbsp; ${mins} min so far`;
+}
+
+let toastT;
+function toast(msg){
+  $('toast').textContent=msg; $('toast').classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>$('toast').classList.remove('show'),2600);
+}
+/* Every change goes through api(), and every read through get(). The token from /api/auth/login rides in X-Auth-Token; a
+   401 asking for a login opens the login box and the request is retried once.
+   The token lives in localStorage only to survive a page reload -- the board
+   forgets every token when it restarts anyway. */
+let tok=''; try{ tok=localStorage.getItem('tok')||''; }catch(e){}
+function setTok(t){ tok=t||''; try{ t?localStorage.setItem('tok',t):localStorage.removeItem('tok'); }catch(e){} }
+let loginWait=null;
+/* Two different failures used to read "the board did not answer": no reply at
+   all (this device cannot reach the board) and a reply the page cannot read. */
+const NOREACH=()=>`Can't reach the board at ${location.host}. Is this phone or computer on the same network as it (not a VPN or guest Wi-Fi)?`;
+async function readReply(res){
+  try{ return await res.json(); }
+  catch(e){ return {ok:false,error:`The board answered (HTTP ${res.status}) but not in a form this page understands. Reload the page.`}; }
+}
+function askLogin(gate){
+  $('login').hidden=false; $('lg-user').focus();
+  $('lg-cancel').hidden=!!gate;
+  return new Promise(res=>{ loginWait=res; });
+}
+function loginDone(ok){ $('login').hidden=true; $('lg-pass').value=''; const w=loginWait; loginWait=null; if(w) w(ok); }
+/* A rough strength guide, not a guarantee: length counts most, mixing kinds of
+   character helps, and the passwords every scanner tries first score nothing.
+   No library -- zxcvbn alone is several times the size of this whole page. */
+const PW_COMMON=/^(password|passw0rd|admin|administrator|12345678|123456789|1234567890|qwertyui|qwerty123|letmein|welcome|iloveyou|changeme|abc12345|11111111|00000000|upsadmin|default)\d*!?$/i;
+function pwScore(p){
+  if(!p) return -1;
+  if(p.length<8||PW_COMMON.test(p)||/^(.)\1+$/.test(p)) return 0;
+  const kinds=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/].filter(r=>r.test(p)).length;
+  let sc=(p.length>=10)+(p.length>=14)+(kinds>=3)+(kinds>=4 || p.length>=20);
+  return Math.max(1,Math.min(4,sc));
+}
+function pwMeter(pre){
+  const m=$(pre+'-meter'); if(!m) return;
+  const sc=pwScore($(pre+'-pass').value);
+  const W=['Too weak','Weak','Fair','Good','Strong'], C=['var(--bad)','var(--bad)','var(--warn)','var(--ok)','var(--ok)'];
+  m.style.setProperty('--w', sc<0?'0%':`${(sc+1)*20}%`);
+  m.style.setProperty('--c', sc<0?'var(--line)':C[sc]);
+  m.querySelector('span').textContent = sc<0?'':W[sc];
+}
+/* Checked before anything is sent: '' when fine, else what to fix. */
+function pwProblem(pre){
+  const p=$(pre+'-pass').value, p2=$(pre+'-pass2').value;
+  if(p.length<8) return 'The password needs at least 8 characters';
+  if(p!==p2) return 'The two passwords do not match';
+  if(pwScore(p)===0) return 'That password is one scanners try first; choose another';
+  return '';
+}
+for(const pre of ['su','au','mk']){
+  $(pre+'-pass').addEventListener('input',()=>pwMeter(pre));
+}
+async function login(user,pass){
+  try{
+    const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user,pass})});
+    const r=await readReply(res);
+    if(r.ok) setTok(r.token);
+    return r;
+  }catch(e){ return {ok:false,error:NOREACH()}; }
+}
+$('lg-go').onclick=async()=>{
+  const r=await login($('lg-user').value.trim(),$('lg-pass').value);
+  if(r.ok) loginDone(true); else toast(r.error||'wrong username or password');
+};
+$('lg-pass').onkeydown=e=>{ if(e.key==='Enter') $('lg-go').click(); };
+$('lg-cancel').onclick=()=>loginDone(false);
+/* Every read, with the token: once a login exists the whole page is behind it. */
+const get=url=>fetch(url,{headers:tok?{'X-Auth-Token':tok}:{}});
+async function api(url,body){
+  const go=()=>fetch(url,{method:'POST',
+    headers:Object.assign({'Content-Type':'application/json'},tok?{'X-Auth-Token':tok}:{}),
+    body:body===undefined?undefined:JSON.stringify(body)});
+  const read=readReply;
+  let res; try{ res=await go(); }catch(e){ return {ok:false,error:NOREACH()}; }
+  let r=await read(res);
+  if(res.status===401 && r.login){
+    setTok('');
+    if(!await askLogin()) return {ok:false,error:'not logged in'};
+    try{ res=await go(); }catch(e){ return {ok:false,error:NOREACH()}; }
+    r=await read(res);
+  }
+  return r;
+}
+
+async function cmd(name,arg){
+  const r=await api('/api/cmd',arg===undefined?{cmd:name}:{cmd:name,arg});
+  toast(r.ok ? 'Done' : (r.error || 'The UPS refused it'));
+  poll();
+}
+
+// Mirrors ota_state_t in ota.h.
+const OTA={IDLE:0,CHECKING:1,AVAILABLE:2,UP_TO_DATE:3,DOWNLOADING:4,INSTALLED:5,FAILED:6,
+           INCOMPATIBLE:7};
+let otaBuilt=null;
+
+// One element, five moods. Red when there is an update to take, blue while it
+// is coming down, green when it is ready to run, amber while a fresh image is
+// still on trial or when the published release is for another board -- and a
+// single grey line the rest of the time.
+function ota(s){
+  const o=s.ota; if(!o) return;
+  const running=s.version;
+  const key=[o.state,o.latest,o.progress,o.pending,o.auto,o.error,o.refused,o.dev].join('|');
+  if(key===otaBuilt) return;
+  otaBuilt=key;
+
+  const ICO={
+    down:'<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+    tick:'<path d="M20 6 9 17l-5-5"/>',
+    warn:'<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  };
+  const svg=g=>`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff"
+      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${g}</svg>`;
+
+  const loud=(bg,bd,icon,title,body,buttons='')=>
+    `<div class="hero-card loud" style="--fwbg:${bg};--fwbd:${bd}">
+       <div class="row2"><div class="ico2">${svg(icon)}</div>
+       <div style="min-width:0;flex:1"><h2>${title}</h2>${body}${buttons}</div></div></div>`;
+
+  let html;
+  if(o.state===OTA.AVAILABLE && o.dev){
+    // A local build, stamped with a commit rather than a tag. Every release
+    // "differs" from it, and the one offered is usually OLDER -- installing it
+    // throws away whatever is being tested. Still offered, since putting a
+    // bench board back on a release is legitimate, but not as an alert.
+    html=`<div class="calm">
+        <span>Dev build <b>${running}</b> · release <b>${o.latest}</b> is published</span>
+        <button id="fw-install">install ${o.latest}</button>
+        <button id="fw-check">check now</button>
+        <div id="fw-notes" class="fwn"></div>
+      </div>`;
+  } else if(o.state===OTA.AVAILABLE){
+    html=loud('#b3261e','#8f1d18',ICO.down,'Firmware update available',
+      `<p class="note" style="margin:2px 0 0">Version <b>${o.latest}</b> is published for this
+       board. You are running <b>${running}</b>. Nothing installs until you choose to.</p>
+       <div id="fw-notes"></div>`,
+      `<button class="act" id="fw-install">Install ${o.latest}</button>
+       <button class="ghost2" id="fw-check">Check again</button>`);
+  } else if(o.state===OTA.DOWNLOADING){
+    html=loud('#1f4e6b','#173b52',ICO.down,'Downloading update',
+      `<p class="note" style="margin:2px 0 0">${o.progress}% of <b>${o.latest}</b>. Leave the
+       board powered — it keeps running the current firmware until this finishes.</p>
+       <div class="bar"><i style="width:${o.progress}%"></i></div>`);
+  } else if(o.state===OTA.INSTALLED){
+    html=loud('#1f7a3d','#165c2e',ICO.tick,'Update installed',
+      `<p class="note" style="margin:2px 0 0"><b>${o.latest}</b> is written and will run after a
+       restart. If it fails to come back, the board returns to <b>${running}</b> by itself.</p>`,
+      `<button class="act" id="fw-reboot">Restart now</button>`);
+  } else if(o.state===OTA.INCOMPATIBLE){
+    // No install button on purpose. This is not something the owner can retry
+    // their way out of -- the file on GitHub is wrong, and the board has
+    // already checked it byte for byte and declined it.
+    html=loud('#8a5a00','#6b4600',ICO.warn,'Update not for this board',
+      `<p class="note" style="margin:2px 0 0"><b>${o.latest||'The latest release'}</b> was
+       published, but its firmware is not built for this board, so it was refused and
+       nothing was written. You are still running <b>${running}</b>${
+       o.error?` — <span style="opacity:.85">${o.error}</span>`:''}.
+       A corrected release will be offered here.</p>`,
+      `<button class="ghost2" id="fw-check">Check again</button>`);
+  } else if(o.pending){
+    html=loud('#8a5a00','#6b4600',ICO.warn,'New firmware on trial',
+      `<p class="note" style="margin:2px 0 0">Running <b>${running}</b>. It reverts to the
+       previous version unless it stays up long enough to prove itself — no action needed.</p>`);
+  } else {
+    const st = o.state===OTA.CHECKING ? 'checking…'
+             : o.state===OTA.FAILED   ? (o.error||'last check failed')
+             : o.checked              ? 'up to date' : 'not checked yet';
+    html=`<div class="calm">
+        <span>Firmware <b>${running}</b> · <span style="color:var(--dim)"
+          title="The release asset this board installs. Another board's file is refused.">${s.image||''}</span>
+          · <span${o.state===OTA.FAILED?' style="color:var(--bad)"':''}>${st}</span></span>
+        <button id="fw-check">check now</button>
+        <label title="Contacts github.com. Never installs anything by itself.">
+          <input type="checkbox" id="fw-auto"${o.auto?' checked':''}> check daily
+        </label>
+      </div>`;
+  }
+  $('fw').innerHTML=html;
+  if($('fw-notes')) fwNotes(o.latest);
+
+  const post=async(u,msg)=>{const r=await api(u);
+                            toast(r.ok?msg:(r.error||'failed')); otaBuilt=null; poll();};
+  if($('fw-check'))  $('fw-check').onclick=()=>post('/api/ota/check','Checking GitHub…');
+  if($('fw-install'))$('fw-install').onclick=()=>
+      confirm((o.dev?`This board runs a development build (${running}), not a release. `+
+               `Installing replaces it with ${o.latest}, which may be older.\n\n`:'')+
+              `Install ${o.latest}?\n\nIt downloads to the spare flash slot and runs after a restart. If it fails to come back, the board reverts to ${running} by itself.`)
+      && post('/api/ota/install','Downloading…');
+  if($('fw-reboot')) $('fw-reboot').onclick=()=>post('/api/reboot','Restarting…');
+  if($('fw-auto'))   $('fw-auto').onchange=async e=>{
+    const r=await api('/api/ota/auto',{enabled:e.target.checked});
+    toast(r.ok?(e.target.checked?'Will check daily':'Automatic checks off'):'failed');
+    otaBuilt=null; poll();
+  };
+}
+
+// Fleet reporting. The heartbeat is on unless the owner turns it off, and the
+// extra stats are off unless the owner turns them on; both say, right here,
+// exactly what leaves the board. Rebuilt only when something changes, so a
+// click is never undone by the next poll.
+let fleetBuilt=null;
+function fleet(s){
+  const f=s.fleet; if(!f) return;
+  const ago = f.last_ok<0 ? null : f.last_ok<120 ? `${f.last_ok}s ago`
+            : f.last_ok<7200 ? `${Math.round(f.last_ok/60)} min ago` : `${(f.last_ok/3600).toFixed(1)} h ago`;
+  const st = !f.configured ? 'not set up in this build'
+           : !f.enabled ? 'off'
+           : ago ? `last check-in ${ago}${f.channel==='dev'?' · <b>dev board</b>: installs test builds automatically'
+                   :f.channel==='debug'?' · <b>debug board</b>: installs vetted release candidates automatically':''}`
+           : f.error ? esc(f.error) : 'first check-in a few minutes after start-up';
+  const key=[f.configured,f.enabled,f.stats,f.stats_auto,f.channel,ago&&Math.round(f.last_ok/60),f.error].join('|');
+  if(key===fleetBuilt) return;
+  fleetBuilt=key;
+  $('fleet').innerHTML=`<div class="calm">
+      <span>Fleet reporting · ${st}</span>
+      <label title="Tells the project this board is alive and which firmware it runs.">
+        <input type="checkbox" id="fl-on"${f.enabled?' checked':''}${f.configured?'':' disabled'}> check in</label>
+      ${f.stats_auto
+        ? `<label title="A project test board sends its stats and device details with every check-in.">
+             <input type="checkbox" id="fl-stats" checked disabled> stats: sent automatically on a test board</label>`
+        : `<label title="Optional. Helps the project see which UPSes and conditions boards meet.">
+             <input type="checkbox" id="fl-stats"${f.stats?' checked':''}${f.configured&&f.enabled?'':' disabled'}> share anonymous stats</label>`}
+      <details><summary>what is sent</summary>
+        Check-in, a few times a day: this board's hardware address, its firmware version,
+        how long it has been up and why it last restarted. The reply says whether this is a
+        development or debug board -- the project's own test boards, which install
+        test builds by themselves. Every other board is only ever <i>offered</i> updates.
+        Stats, only if ticked: the UPS's make, model and USB id, its charge, runtime, load and
+        input voltage, the battery date, Wi-Fi signal strength, NUT client count and the lowest
+        free memory. Never the UPS serial number, your Wi-Fi name or any address on your network.
+        Unticking stats deletes what was kept. The project's own test boards (development and
+        debug) always send stats, plus device details -- chip, build, memory, crash count, and this
+        board's address on your network -- so a problem they report can be chased.
+        Nothing here affects how the board serves your UPS.
+      </details></div>`;
+  const send=async()=>{
+    const r=await api('/api/fleet',{enabled:$('fl-on').checked,stats:f.stats_auto?f.stats:$('fl-stats').checked});
+    toast(r.ok?'Saved':'failed'); fleetBuilt=null; poll();
+  };
+  $('fl-on').onchange=()=>{ if(!$('fl-on').checked&&!f.stats_auto) $('fl-stats').checked=false; send(); };
+  if(!f.stats_auto) $('fl-stats').onchange=send;
+}
+
+// What changed in the offered release, from /api/ota/notes: the bullets under
+// "## What changed" in its GitHub release, abridged on the board, and a link to
+// the full notes. Fetched once per tag; the card is rebuilt more often than
+// that, so the result is cached and re-drawn into it.
+const notesCache={};
+async function fwNotes(tag){
+  if(!tag) return;
+  if(!notesCache[tag]){
+    try{ notesCache[tag]=await (await get('/api/ota/notes')).json(); }
+    catch(e){ return; }
+    if(notesCache[tag].tag!==tag){ delete notesCache[tag]; return; }
+  }
+  const n=notesCache[tag], el=$('fw-notes');
+  if(!el) return;
+  const list=(n.notes||[]).map(t=>`<li>${esc(t)}</li>`).join('');
+  // The link opens GitHub in the viewer's browser: the board may have no
+  // internet route, but whoever is reading this page usually does.
+  const link=/^https:\/\/github\.com\//.test(n.url||'')
+    ? `<a class="fwlink" href="${esc(n.url)}" target="_blank" rel="noopener">${
+        list?`Full notes for ${esc(tag)} on GitHub ↗`:`What changed in ${esc(tag)} ↗`}</a>`:'';
+  el.innerHTML=(list?`<ul class="fwnotes">${list}</ul>`:'')+link;
+}
+
+let builtCaps=-1;
+function controls(u){
+  if(u.caps===builtCaps) return;
+  builtCaps=u.caps;
+  const c=$('controls'); c.innerHTML=''; $('controls-card').hidden=false;
+
+  if(u.caps & CAP_TEST){
+    c.insertAdjacentHTML('beforeend',
+      `<p class="note" style="margin-top:0">A self-test runs the UPS on its battery for a few
+       seconds to prove the battery still works. Anything plugged into it stays powered.</p>
+       <button class="btn pri" id="t-quick">Run self-test</button>
+       <button class="btn" id="t-deep">Deep test</button>
+       <button class="btn" id="t-abort">Stop</button>
+       <p class="note">Last result: <b id="t-res">—</b></p>
+       <p class="note" id="t-deepnote" hidden></p>`);
+    $('t-quick').onclick=()=>cmd('test.battery.start.quick');
+    const dk=deepKnown(u);
+    if(dk && dk.deep==='quick'){
+      $('t-deep').disabled=true; $('t-deep').title=dk.note;
+      $('t-deepnote').textContent='Deep test: '+dk.note; $('t-deepnote').hidden=false;
+    }
+    $('t-deep').onclick=()=>{
+      const msg=(dk?dk.note:'A deep test runs the battery down to measure real runtime, if this UPS supports one. It can take a long time and leaves the battery low until it recharges.')+'\n\nStart it?';
+      if(!confirm(msg)) return;
+      $('t-deepnote').hidden=true;
+      deepWatch=dk?null:{at:Date.now(),saw:false};
+      cmd('test.battery.start.deep');
+    };
+    $('t-abort').onclick=()=>cmd('test.battery.stop');
+  }
+  if(u.caps & CAP_BEEPER){
+    c.insertAdjacentHTML('beforeend',
+      `<hr><div class="k">Beeper</div>
+       <p class="note" style="margin-top:2px">The UPS's own alarm. Muting silences the one
+        sounding now; switching it off keeps future ones quiet too.</p>
+       <div class="seg" id="bseg">
+         <button data-b="2">On</button><button data-b="3">Muted</button><button data-b="1">Off</button>
+       </div>`);
+    const map={2:'beeper.enable',3:'beeper.mute',1:'beeper.disable'};
+    document.querySelectorAll('#bseg button').forEach(b=>b.onclick=()=>cmd(map[b.dataset.b]));
+  }
+  if(u.caps & CAP_LOWBATT){
+    c.insertAdjacentHTML('beforeend',
+      `<hr><div class="k">Low-battery warning</div>
+       <p class="note" style="margin-top:2px">The level at which the UPS starts warning it is
+        nearly out. Clients use that warning to decide when to shut down.</p>
+       <div class="row"><div><label for="lb">Warn below</label>
+       <input type="number" id="lb" min="0" max="100" step="1"></div>
+       <button class="btn" id="lb-set">Set</button></div>`);
+    $('lb-set').onclick=()=>cmd('battery.charge.low',parseInt($('lb').value,10));
+  }
+  $('caps-note').textContent = u.caps ? '' : 'This UPS exposes no controls over USB — readings only.';
+
+  if(u.caps & CAP_SHUTDOWN){
+    $('danger-card').hidden=false;
+    $('danger').innerHTML =
+      `<p class="note" style="margin-top:2px"><b>Cuts power to everything the UPS feeds.</b>
+       That includes this board, so it goes dark and cannot undo it. This UPS has no
+       "turn back on" command, so the outlets stay dead until mains power returns.
+       Type <b>OFF</b> to enable the button.</p>
+       <div class="row">
+         <div><label for="kc">Confirm</label><input id="kc" autocomplete="off" placeholder="OFF"></div>
+         <div><label for="kd">Seconds first</label><input type="number" id="kd" min="0" max="600" value="60"></div>
+         <button class="btn danger" id="kill" disabled>Cut the outlets</button>
+       </div>`;
+    $('kc').oninput=e=>{$('kill').disabled=e.target.value.trim().toUpperCase()!=='OFF';};
+    $('kill').onclick=()=>cmd('load.off',parseInt($('kd').value,10));
+  }
+}
+
+let last=0;
+let pageVersion=null;
+/* Logged out: only the login box. The board refuses every read until then. */
+let lockShown=false;
+function locked(on){
+  document.body.classList.toggle('locked',on);
+  if(on) $('sub').textContent='locked: log in to see this board';
+  if(on && !lockShown){
+    lockShown=true;
+    askLogin(true).then(()=>{ lockShown=false; poll(); });
+  }
+}
+async function poll(){
+  try{
+    const res=await get('/api/status');
+    if(res.status===401){ locked(true); return; }
+    const s=await res.json();
+    locked(false);
+    // A tab left open across a firmware update keeps the OLD page and script
+    // while polling the new firmware. When the version changes, reload.
+    if(pageVersion===null) pageVersion=s.version;
+    else if(s.version!==pageVersion){ location.reload(); return; }
+    const u=s.ups;
+    curU=u;
+    last=Date.now();
+    // Uptime and the last reset reason sit in the subtitle: a board that has
+    // been up nine seconds when you did not just restart it is the single most
+    // useful thing this page can tell you, and it is invisible otherwise.
+    const up = s.uptime_s ?? null;
+    const upTxt = up === null ? '' :
+      up < 120 ? ` · up ${up}s` :
+      up < 7200 ? ` · up ${Math.round(up/60)} min` :
+      ` · up ${(up/3600).toFixed(1)} h`;
+    const rst = s.last_reset && s.last_reset !== 'power-on' && s.last_reset !== 'external'
+      ? ` · last reset: ${s.last_reset}` : '';
+    // A crash count that PERSISTS. Uptime and last_reset describe only this
+    // life, and a board that panics, reboots in under a second and rejoins
+    // Wi-Fi looks perfectly healthy half a minute later. One did, and it was
+    // found by chance. This makes it impossible to miss.
+    const cr = s.crashes > 0
+      ? ` · <b>${s.crashes} crash${s.crashes === 1 ? '' : 'es'}</b> since flashing` : '';
+    // Where the last one happened, so a crash reported from the field can be
+    // found in the code: the panic's reason and a backtrace to decode.
+    const lc = s.last_crash
+      ? `<div style="font-size:11.5px;opacity:.8;margin-top:2px;word-break:break-all">last crash: ${esc(s.last_crash)}</div>` : '';
+    $('sub').innerHTML = `${s.board} · ${s.version}${upTxt}` +
+      (rst ? `<span style="color:var(--bad)">${rst}</span>` : '') +
+      (cr  ? `<span style="color:var(--bad)">${cr}</span>` : '') + lc;
+
+    const [tone,ic,head,detail]=explain(u);
+    const colour=tone==='ok'?'var(--ok)':tone==='warn'?'var(--warn)':'var(--bad)';
+    document.documentElement.style.setProperty('--st',colour);
+    $('statuscard').style.setProperty('--st',colour);
+    $('ico').innerHTML=icon(ic,colour);
+    $('ico').style.setProperty('--st',colour);
+    $('headline').textContent=head;
+    $('headline').style.setProperty('--st',colour);
+    $('detail').textContent = u.attached && u.model ? `${u.mfr} ${u.model} — ${detail}` : detail;
+    $('codes').innerHTML = u.attached
+      ? CODES.filter(([b])=>u.status&b).map(([,n])=>`<span class="flag">${n}</span>`).join('')+
+        '<span class="flag" style="background:none">NUT status</span>' : '';
+
+    // Hero: runtime is the number that matters during an outage; charge otherwise.
+    const onbatt = u.attached && (u.status & (OB|DISCHRG));
+    if (onbatt && u.battery_runtime !== null) {
+      $('herok').textContent='Runtime remaining';
+      $('hero').textContent=Math.round(u.battery_runtime/60);
+      $('heronote').textContent=`minutes · ${u.battery_charge===null?'--':Math.round(u.battery_charge)}% charge`;
+    } else {
+      $('herok').textContent='Battery charge';
+      $('hero').textContent=u.battery_charge===null?'--':Math.round(u.battery_charge)+'%';
+      $('heronote').textContent=u.battery_runtime===null?'':`${Math.round(u.battery_runtime/60)} min of runtime`+
+        (runtimeStale(u)?`, as last reported by the UPS (unchanged ${since(u.runtime_age_s)})`:'');
+    }
+    $('gfill').style.width=(u.battery_charge===null?0:u.battery_charge)+'%';
+    $('gfill').style.background=colour;
+
+    $('stats').innerHTML = GROUPS.map(([name,rows])=>{
+      const items=rows.filter(([k])=>u[k]!==null&&u[k]!==undefined)
+        .map(([k,label,f])=>`<div class="stat"><span class="sk">${label}</span><span class="sv">${f(u[k])}</span></div>`);
+      return items.length?`<div class="group"><div class="k grp">${name}</div><div class="items">${items.join('')}</div></div>`:'';
+    }).join('') || '<div class="note">No readings yet.</div>';
+
+    if(u.attached){ push(u); draw(); controls(u); }
+    if($('t-res')) $('t-res').textContent=TEST_WORDS[u.test_result]??'—';
+    if(u.attached) watchDeep(u);
+    document.querySelectorAll('#bseg button').forEach(b=>
+      b.setAttribute('aria-pressed',String(+b.dataset.b===u.beeper)));
+    if($('lb')&&document.activeElement!==$('lb')&&u.lowbatt_limit!==null)
+      $('lb').value=Math.round(u.lowbatt_limit);
+
+    // Everything a client needs, read off the device rather than guessed at.
+    // mDNS is offered first: it survives a DHCP lease change, which the
+    // address does not.
+    ota(s);
+    fleet(s);
+    lastS=s;
+    const dbgOn=wantDebug||!!(s.fleet&&s.fleet.stats_auto);
+    $('dbg-card').hidden=!dbgOn;
+    if(dbgOn&&$('dbg-card').open) loadDebug(s);
+
+    const nut=s.nut||{};
+    const host=(w0=>w0)(s.wifi.ip);
+    const fields=[['Host',`${s.wifi.host||'ups-esp32'}.local`],['or address',host],
+                  ['Port',String(nut.port||3493)],['UPS name',nut.name||'ups'],
+                  ['Login','none needed']];
+    $('nut-fields').innerHTML=fields.map(([k,v])=>
+      `<div class="stat copyable" data-copy="${v}"><span class="sk">${k}</span><span class="sv">${v}</span></div>`).join('');
+    $('nut-example').innerHTML=`Test it from any machine with NUT installed: `+
+      `<code>upsc ${nut.name||'ups'}@${host}</code>`;
+    document.querySelectorAll('#nut-fields .copyable').forEach(el=>el.onclick=async()=>{
+      const t=el.dataset.copy;
+      // The clipboard API needs a secure context and this is plain HTTP on a
+      // LAN, so selecting the text is the fallback that always works.
+      try{ await navigator.clipboard.writeText(t); toast('Copied '+t); }
+      catch(e){
+        const r=document.createRange(); r.selectNodeContents(el.querySelector('.sv'));
+        const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        toast('Selected — press copy');
+      }
+    });
+    const cl=nut.clients||0;
+    $('nut-sum').textContent =
+      `${nut.name||'ups'}@${host}:${nut.port||3493} · ` +
+      (cl ? `${cl} client${cl===1?'':'s'} connected` : 'no clients yet');
+
+    const w=s.wifi;
+    const setup=w.state===PROVISIONING, card=$('wifi-card');
+    authUI(s.auth||{}, setup);
+    if(document.body.classList.contains('setup')!==setup){
+      document.body.classList.toggle('setup',setup);
+      if(setup) document.querySelector('.hdr').after(card);
+      else $('wifi-home').after(card);
+    }
+    card.classList.toggle('quiet',w.state===3);
+    // The Address card is for a board already on a network; in setup the
+    // fixed address goes in with the Wi-Fi details instead.
+    $('addr-card').hidden=setup;
+    if(setup) $('dbg-card').hidden=true;
+    if(!setup && w.state===3) loadNet();
+    if(setup){
+      if(w.ap) $('apname').textContent=w.ap;
+      if(!scanned) scan();
+      card.open=true;
+      $('wifi-sum').textContent='not configured';
+      join(w);
+    } else if(w.state===3){
+      const q=w.rssi>=-55?'excellent':w.rssi>=-67?'good':w.rssi>=-75?'fair':'weak';
+      $('wifi-sum').textContent=
+        `${w.ssid||'connected'} · ${w.ip}${w.host?` · ${w.host}.local`:''} · ${w.rssi} dBm (${q})`;
+    } else {
+      $('wifi-sum').textContent=w.ssid?`connecting to ${w.ssid}…`:'connecting…';
+    }
+  }catch(e){ $('sub').textContent=last?'lost contact with the board':NOREACH(); }
+}
+
+// Freshness is its own ticker: if polling stops, this keeps counting and the
+// staleness becomes visible instead of the page just freezing.
+setInterval(()=>{
+  if(!last) return;
+  const s=Math.round((Date.now()-last)/1000);
+  $('fresh').textContent = s<3?'updated just now':`updated ${s}s ago`;
+  $('fresh').style.color = s>12?'var(--bad)':'var(--dim)';
+},1000);
+
+let scanned=false;
+async function scan(){
+  scanned=true;
+  $('nets').innerHTML='<option value="">scanning…</option>';
+  try{
+    const r=await (await get('/api/scan')).json();
+    $('nets').innerHTML='<option value="">choose a network…</option>'+
+      r.nets.map(n=>`<option value="${n.ssid.replace(/"/g,'&quot;')}">${n.ssid} ${n.secure?'🔒':''} ${n.rssi} dBm</option>`).join('');
+  }catch(e){ $('nets').innerHTML='<option value="">scan failed — type it below</option>'; }
+}
+$('rescan').onclick=scan;
+
+// The setup join, as the board reports it. The board joins with its setup
+// network still up, so this page can say where it went -- or that the
+// password was wrong -- before the person leaves. Joining moves the setup
+// network onto the router's channel, so the phone may drop off for a few
+// seconds; polling simply carries on, and this keeps the last state it saw.
+const JOIN={IDLE:0,TRYING:1,OK:2,FAILED:3};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let joinBuilt='';
+function join(w){
+  const key=[w.join,w.join_ip,w.join_err,w.ssid].join('|');
+  if(key===joinBuilt) return;
+  joinBuilt=key;
+  const el=$('join');
+  el.className=w.join===JOIN.OK?'ok':w.join===JOIN.FAILED?'bad':'';
+  $('setup-intro').hidden = w.join===JOIN.OK;
+  $('wifi-form').hidden = w.join===JOIN.TRYING || w.join===JOIN.OK;
+  if(w.join===JOIN.TRYING){
+    el.innerHTML=`<b>Joining ${esc(w.ssid)}…</b><p class="note">Up to 25 seconds. Your phone
+      may drop off this setup network for a moment and rejoin — that is expected.</p>`;
+  } else if(w.join===JOIN.OK){
+    const url=`http://${w.join_ip}/`;
+    el.innerHTML=`<b>Connected to ${esc(w.ssid)}.</b> This board's address is
+      <a class="addr" href="${url}">${url}</a>
+      <span class="note">or <b>http://${esc(w.host)}.local/</b> on most computers and iPhones</span>
+      <p>Save or screenshot that now. Then switch your phone back to <b>${esc(w.ssid)}</b>
+        and open it. This setup network closes by itself in three minutes.</p>
+      <p class="note">Home Assistant usually finds the board on its own: look under
+        Settings → Devices &amp; services for a discovered NUT integration.</p>
+      <button class="btn pri" id="join-done">I've saved it — finish setup</button>`;
+    $('join-done').onclick=async()=>{
+      try{ await api('/api/reboot'); }catch(e){}
+      $('join-done').disabled=true;
+      $('join-done').textContent='Finishing — switch back to '+w.ssid;
+    };
+  } else if(w.join===JOIN.FAILED){
+    el.innerHTML=`<b>Could not join ${esc(w.ssid)}:</b> ${esc(w.join_err)}.
+      <span class="note">Nothing was saved. Check the name and password and try again.</span>`;
+    $('save').disabled=false;
+  } else {
+    el.innerHTML='';
+  }
+}
+
+// A fixed address, from one of the two forms ('w' in Wi-Fi setup, 'a' in Address).
+const ipOf=(p,on)=>({static:on,ip:$(p+'-ip').value.trim(),mask:$(p+'-mask').value.trim(),
+                     gw:$(p+'-gw').value.trim(),dns:$(p+'-dns').value.trim()});
+$('w-static').onchange=()=>{ $('w-fields').hidden=!$('w-static').checked; };
+$('w-fields').hidden=true;
+
+// The Address card: filled once from /api/network, then left alone while open.
+let netLoaded=false;
+async function loadNet(){
+  let n; try{ n=await (await get('/api/network')).json(); }catch(e){ return; }
+  $('addr-sum').textContent=` ${n.current.ip||''} · ${n.static&&!n.fell_back?'fixed':'automatic'}`;
+  $('addr-warn').hidden=!n.fell_back;
+  if(n.fell_back) $('addr-warn').innerHTML=`<b style="color:var(--bad)">The fixed address ${esc(n.ip)}
+    did not work</b> — the router at ${esc(n.gw)} did not answer from it — so this board is on
+    <b>${esc(n.current.ip)}</b> from DHCP until it restarts. Check the numbers below.`;
+  if(netLoaded) return;
+  netLoaded=true;
+  const c=n.static?n:n.current;
+  $('a-ip').value=c.ip||''; $('a-mask').value=c.mask||'255.255.255.0';
+  $('a-gw').value=c.gw||''; $('a-dns').value=n.static?(n.dns||''):'';
+  $(n.static?'a-static':'a-dhcp').checked=true;
+  $('a-fields').hidden=!n.static;
+}
+$('a-dhcp').onchange=$('a-static').onchange=()=>{ $('a-fields').hidden=!$('a-static').checked; };
+$('a-save').onclick=async()=>{
+  const cfg=ipOf('a',$('a-static').checked);
+  const to=cfg.static?cfg.ip:'an address from your router';
+  if(!confirm(`Restart this board onto ${to}?\n\nThis page is on its current address, so you will need to open the new one${cfg.static?` (http://${cfg.ip}/)`:''}.`)) return;
+  let r; try{ r=await api('/api/network',cfg); }catch(e){ r={ok:false,error:NOREACH()}; }
+  if(!r.ok){ toast(r.error||'failed'); return; }
+  $('sub').textContent=cfg.static?`saved — restarting on http://${cfg.ip}/`:'saved — restarting with an address from your router';
+  toast('Restarting');
+};
+
+// Debug: the board's own details, from /api/debug, while the card is open.
+const wantDebug=new URLSearchParams(location.search).has('debug');
+let dbgLast=null;
+const kb=v=>v==null?'—':`${Math.round(v/1024)} KB`;
+const secs=v=>v==null||v<0?'—':v<120?`${v}s`:v<7200?`${Math.round(v/60)} min`:`${(v/3600).toFixed(1)} h`;
+async function loadDebug(s){
+  let d; try{ d=await (await get('/api/debug')).json(); }catch(e){ return; }
+  dbgLast=d;
+  const rows=[
+    ['MAC',d.mac],['Address',`${d.ip||'—'}${d.ip_fixed?' (fixed)':''} / ${d.mask||''}`],
+    ['Gateway · DNS',`${d.gw||'—'} · ${d.dns||'—'}`],['Hostname',d.host?`${d.host}.local`:''],
+    ['Wi-Fi',`${d.ssid||'—'} · ${d.rssi||'—'} dBm · channel ${d.wifi_ch??'—'}`],
+    ['Chip',`${d.chip||''} · ${d.cpu_mhz} MHz`],['Flash',d.flash_mb?`${d.flash_mb} MB`:''],
+    ['Firmware',`${s.version} · ELF ${d.elf||'?'} · built ${d.built||'?'}`],['ESP-IDF',d.idf],
+    ['Running from',d.slot],
+    ['Memory free / lowest / largest block',`${kb(d.heap_free)} / ${kb(d.heap_min)} / ${kb(d.heap_block)}`],
+    ['Tasks',d.tasks],['Settings storage',d.nvs],
+    ['Up',secs(d.uptime_s)],['Last reset',s.last_reset],['Crashes since flashing',d.crashes],
+    ['Last crash',d.last_crash||'none'],
+    ['Tier',`${d.tier}${d.tier_target?' → '+d.tier_target:''}${d.auto_install?' · installs by itself':''}`],
+    ['Check-ins',`${d.checkins} this boot · last ${secs(d.last_checkin_s_ago)} ago`],
+    ['Update',`latest seen ${d.ota_latest||'—'}${d.ota_on_trial?' · new image on trial':''}${d.ota_error?' · '+d.ota_error:''}`],
+    ['UPS poll failures',d.ups_poll_failures],['VBUS fault',d.vbus_fault?'YES':'no'],
+  ];
+  $('dbg').innerHTML=rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v??'—')}</dd>`).join('');
+  $('dbg-sum').textContent=` ${d.mac} · ${kb(d.heap_free)} free`;
+}
+let lastS=null;
+$('dbg-card').ontoggle=()=>{ if($('dbg-card').open&&lastS) loadDebug(lastS); };
+$('dbg-copy').onclick=async()=>{
+  if(!dbgLast) return;
+  try{ await navigator.clipboard.writeText(JSON.stringify(dbgLast,null,1)); toast('Copied'); }
+  catch(e){ toast('Copy not allowed here'); }
+};
+
+$('save').onclick=async()=>{
+  const ssid=$('ssid').value.trim()||$('nets').value;
+  if(!ssid){ toast('Pick a network, or type its name'); return; }
+  $('save').disabled=true;
+  let r;
+  try{
+    const body={ssid,pass:$('pass').value,ip:ipOf('w',$('w-static').checked)};
+    const au=$('su-user').value.trim();
+    if(!$('setup-login').hidden){
+      const bad=!au?'Choose a username':pwProblem('su');
+      if(bad){ toast(bad); $('save').disabled=false; return; }
+      body.admin_user=au; body.admin_pass=$('su-pass').value;
+    }
+    r=await api('/api/wifi',body);
+    // The login just set covers this page's own "finish setup" restart too.
+    if(r.ok && body.admin_user) await login(body.admin_user,body.admin_pass);
+  }catch(e){ r={ok:false,error:NOREACH()}; }
+  if(!r.ok){ toast(r.error||'failed'); $('save').disabled=false; return; }
+  if(r.joining){ joinBuilt=''; poll(); return; }
+  // Moving an already-connected board: it restarts, and this page is reached
+  // over the network it is leaving.
+  $('sub').textContent=`saved — restarting to join "${ssid}"`;
+  toast(`Restarting to join ${ssid}`);
+};
+$('reset').onclick=async()=>{
+  const r=await api('/api/ups/reset');
+  toast(r.ok?'UPS link power-cycled':(r.error||'failed'));
+};
+// The Login card: change the login, or log out. It cannot be turned off.
+let authBuilt=null;
+function authUI(a,setup){
+  const on=!!a.enabled;
+  $('setup-login').hidden = !setup || on;
+  $('auth-card').hidden = setup || !on;
+  // No login yet, and not in setup: only the create-login screen.
+  const need = !setup && !on;
+  document.body.classList.toggle('mkauth', need);
+  $('mkauth').hidden = !need;
+  const key=String(on)+'|'+(tok?1:0);
+  if(key===authBuilt) return;
+  authBuilt=key;
+  $('auth-sum').textContent = ' change or log out';
+  $('auth-explain').innerHTML = `This page and every change — UPS commands, Wi-Fi, updates,
+       restarts — need this username and password, and so do UPS commands over NUT
+       (<code>upscmd -u</code>). Watching the UPS over NUT, and <code>/metrics</code>,
+       need none. Forgot it? Type <code>clear-login</code> into its USB-C serial console (115200), or press BOOT five times, which clears Wi-Fi too.`;
+  $('au-save').textContent = 'Change login';
+  $('auth-on').hidden = !on;
+  $('au-logout').hidden = !tok;
+}
+$('au-save').onclick=async()=>{
+  const user=$('au-user').value.trim(), pass=$('au-pass').value;
+  const bad=!user?'Enter a username':pwProblem('au');
+  if(bad){ toast(bad); return; }
+  const r=await api('/api/auth/set',{user,pass});
+  if(r.ok){ setTok(r.token); $('au-pass').value=$('au-pass2').value=''; pwMeter('au'); toast('Login is on'); }
+  else toast(r.error||'failed');
+  authBuilt=null; poll();
+};
+$('mk-go').onclick=async()=>{
+  const user=$('mk-user').value.trim(), pass=$('mk-pass').value;
+  const bad=!user?'Choose a username':pwProblem('mk');
+  if(bad){ toast(bad); return; }
+  const r=await api('/api/auth/set',{user,pass});
+  if(r.ok){ setTok(r.token); $('mk-pass').value=$('mk-pass2').value=''; pwMeter('mk'); toast('Login created'); }
+  else toast(r.error||'failed');
+  authBuilt=null; poll();
+};
+$('au-logout').onclick=async()=>{
+  await fetch('/api/auth/logout',{method:'POST',headers:tok?{'X-Auth-Token':tok}:{}}).catch(()=>{});
+  setTok(''); toast('Logged out'); authBuilt=null; poll();
+};
+
+poll(); setInterval(poll,3000);
+</script>
+</body>
+</html>
