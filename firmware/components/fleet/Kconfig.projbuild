@@ -1,0 +1,19 @@
+menu "UPS to ESP32 Module fleet heartbeat"
+
+config UPSA_FLEET_URL
+    string "Fleet heartbeat endpoint (Supabase project URL)"
+    default ""
+    help
+        The Supabase project URL, e.g. https://abcd.supabase.co. The board
+        calls its heartbeat() function there. Empty: the heartbeat is built
+        in but never sends, and the page says it is not configured.
+
+config UPSA_FLEET_KEY
+    string "Fleet heartbeat public key"
+    default ""
+    help
+        The project's PUBLIC (anon / publishable) key. It ships in open-source
+        firmware, so it must only be able to call heartbeat(): see
+        telemetry/supabase.sql. Never the service_role key.
+
+endmenu
