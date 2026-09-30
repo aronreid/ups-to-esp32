@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Rev A hardware, built as its own board identity for a VCC-first OLED module
+# fitted in J3, loaded AFTER sdkconfig.defaults, whose values it overrides:
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.reva-oled" ...
+#
+# This is a real, distributable target, not a bench-only flag on top of a
+# plain Rev A build. It carries its own BOARD_OTA_TARGET/BOARD_IMAGE_NAME
+# (board.h), so a plain Rev A board can never be offered it and a board
+# running it can never be silently offered a plain Rev A release that would
+# leave its screen dark. UPSA_REVA_OLED_VCC_FIRST and UPSA_HAVE_OLED both
+# follow from this one setting; see Kconfig.projbuild.
+
+CONFIG_UPSA_BOARD_REVA_OLED=y
