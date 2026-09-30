@@ -1,0 +1,84 @@
+496 descriptor bytes, 36 power/battery fields
+
+RID Type      Off  Sz Usage                         LogMax      Unit  Exp  Shift      Example
+---------------------------------------------------------------------------------------------
+  1 Feature     0   8 iProduct                         255       0x0    0      0          255
+  2 Feature     0   8 iSerialNumber                    255       0x0    0      0          255
+  3 Feature     0   8 iDeviceChemistry                 255       0x0    0      0          255
+  4 Feature     0   8 iOEMInformation                  255       0x0    0      0          255
+  5 Feature     0   8 ManufacturerData                 255       0x0    0      0          255
+  6 Feature     0   8 CapacityMode                     255       0x0    0      0          255
+  7 Feature     0   8 DesignCapacity                   100       0x0    0      0          100
+  7 Feature     8   8 CapacityGranularity1             100       0x0    0      0          100
+  7 Feature    16   8 CapacityGranularity2             100       0x0    0      0          100
+  7 Feature    24   8 0x8c                             100       0x0    0      0          100
+  7 Feature    32   8 RemainingCapacityLimit           100       0x0    0      0          100
+  7 Feature    40   8 FullChargeCapacity               100       0x0    0      0          100
+  8 Feature     0   8 RemainingCapacity                100       0x0    0      0          100
+  8 Feature     8  16 RunTimeToEmpty                 65535    0x1001    0      0    6.554e+04
+  8 Feature    24  16 0x2a                             600    0x1001    0      0          600
+  9 Feature     0   8 ConfigVoltage                    255  0xf0d121    6     -1         25.5
+ 10 Feature     0   8 Voltage                          255  0xf0d121    6     -1         25.5
+ 11 Feature     0   1 ACPresent                          1       0x0    0      0            1
+ 11 Feature     1   1 Charging                           1       0x0    0      0            1
+ 11 Feature     2   1 Discharging                        1       0x0    0      0            1
+ 11 Feature     3   1 BelowRemainingCapacityLimit        1       0x0    0      0            1
+ 11 Feature     4   1 FullyCharged                       1       0x0    0      0            1
+ 11 Feature     5   1 RemainingTimeLimitExpired          1       0x0    0      0            1
+ 12 Feature     0   8 AudibleAlarmControl                3       0x0    0      0            3
+ 13 Feature     0   8 iManufacturer                    255       0x0    0      0          255
+ 14 Feature     0  16 ConfigVoltage                    230  0xf0d121    7      0          230
+ 15 Feature     0  16 Voltage                          230  0xf0d121    7      0          230
+ 16 Feature     0  16 LowVoltageTransfer               100  0xf0d121    7      0          100
+ 16 Feature    16  16 HighVoltageTransfer              144  0xf0d121    7      0          144
+ 18 Feature     0  16 Voltage                          300  0xf0d121    7      0          300
+ 19 Feature     0   8 PercentLoad                      300       0x0    0      0          300
+ 19 Feature     8   1 Overload                           1       0x0    0      0            1
+ 20 Feature     0   8 Test                               6       0x0    0      0            6
+ 21 Feature     0  16 DelayBeforeShutdown            32767    0x1001    0      0    3.277e+04
+ 22 Feature     0  16 DelayBeforeStartup             32767    0x1001    0      0    3.277e+04
+ 24 Feature     0  16 ConfigActivePower                450    0xd121    7      0          450
+
+Feature fields: 36   Input fields: 0
+Distinct report IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 24]
+
+=== NUT variables this device would publish ===
+  battery.capacity           report   7  PowerSummary    max 100
+  battery.capacity.full      report   7  PowerSummary    max 100
+  battery.charge             report   8  PowerSummary    max 100
+  battery.charge.low         report   7  PowerSummary    max 100
+  battery.runtime            report   8  PowerSummary    max 6.554e+04
+  battery.type               report   3  PowerSummary    max 255
+  input.transfer.high        report  16  Input           max 144
+  input.transfer.low         report  16  Input           max 100
+  input.voltage              report  15  Input           max 230
+  input.voltage.nominal      report  14  Input           max 230
+  output.voltage             report  18  Output          max 300
+  ups.beeper.status          report  12  PowerSummary    max 3
+  ups.delay.shutdown         report  21  Output          max 3.277e+04
+  ups.delay.start            report  22  Output          max 3.277e+04
+  ups.load                   report  19  Output          max 300
+  ups.mfr                    report  13  PowerSummary    max 255
+  ups.model                  report   1  PowerSummary    max 255
+  ups.realpower.nominal      report  24  Output          max 450
+  ups.serial                 report   2  PowerSummary    max 255
+  ups.test.result            report  20  Output          max 6
+
+  20 NUT variables, 16 usages with no NUT name
+  (unmapped usages still reach /api/raw and MQTT):
+    Power 0x30  Voltage
+    Power 0x40  ConfigVoltage
+    Power 0x65  Overload
+    Battery 0x2a  0x2a
+    Battery 0x2c  CapacityMode
+    Battery 0x42  BelowRemainingCapacityLimit
+    Battery 0x43  RemainingTimeLimitExpired
+    Battery 0x44  Charging
+    Battery 0x45  Discharging
+    Battery 0x46  FullyCharged
+    Battery 0x8b  ManufacturerData
+    Battery 0x8c  0x8c
+    Battery 0x8d  CapacityGranularity1
+    Battery 0x8e  CapacityGranularity2
+    Battery 0x8f  iOEMInformation
+    Battery 0xd0  ACPresent
