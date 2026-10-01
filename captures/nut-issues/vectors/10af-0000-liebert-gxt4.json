@@ -1,0 +1,331 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/1346#issuecomment-1103210687",
+"attachment_url": null,
+"vid": "0x10af",
+"pid": "0x0000",
+"model": "Liebert GXT4",
+"nut_version": "2.8.0-rc1",
+"descriptor_file": "10af-0000-liebert-gxt4.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.iManufacturer",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 4,
+"size": 4,
+"value": 1,
+"report_bytes": "02 13 61 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iOEMInformation",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 8,
+"size": 4,
+"value": 1,
+"report_bytes": "02 13 61 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iDeviceChemistry",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 12,
+"size": 4,
+"value": 6,
+"report_bytes": "02 13 61 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.DesignCapacity",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 16,
+"size": 8,
+"value": 100,
+"report_bytes": "02 13 61 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.CapacityMode",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 24,
+"size": 2,
+"value": 2,
+"report_bytes": "03 ff ff ff 06",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Rechargeable",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 26,
+"size": 1,
+"value": 1,
+"report_bytes": "03 ff ff ff 06",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x13",
+"offset": 0,
+"size": 8,
+"value": 20,
+"report_bytes": "13 14",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "06 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Input",
+"report_id": "0x06",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "06 64",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Charging",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Discharging",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ACPresent",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 2,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BelowRemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 3,
+"size": 1,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BatteryPresent",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 4,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 5,
+"size": 3,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Charging",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Discharging",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ACPresent",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 2,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BelowRemainingCapacityLimit",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 3,
+"size": 1,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BatteryPresent",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 4,
+"size": 1,
+"value": 1,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Input",
+"report_id": "0x0c",
+"offset": 5,
+"size": 3,
+"value": 0,
+"report_bytes": "0c 15",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.CapacityGranularity1",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 16,
+"size": 8,
+"value": 1,
+"report_bytes": "04 64 14 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.CapacityGranularity2",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 24,
+"size": 8,
+"value": 1,
+"report_bytes": "04 64 14 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x3c",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "3c 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x3d",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "3d 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x3e",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "3e 01 2c 00 04",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x40",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "40 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x41",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "41 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x42",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "42 01 2c 00 04",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x56",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "56 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x5c",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "5c 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Undefined",
+"type": "Feature",
+"report_id": "0x5d",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "5d 00 00 00 00",
+"match": "raw_equal"
+}
+]
+}

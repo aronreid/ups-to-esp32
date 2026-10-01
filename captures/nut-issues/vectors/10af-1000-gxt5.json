@@ -1,0 +1,531 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/3613",
+"attachment_url": "https://github.com/user-attachments/files/31771028/gxt5-patched-table-entry-DDDDDD.log",
+"vid": "0x10af",
+"pid": "0x1000",
+"model": "GXT5",
+"nut_version": null,
+"descriptor_file": "10af-1000-gxt5.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x01",
+"offset": 0,
+"size": 16,
+"value": 238,
+"report_bytes": "01 ee 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x01",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "01 ee 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x01",
+"offset": 32,
+"size": 16,
+"value": 0,
+"report_bytes": "01 ee 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigCurrent",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 0,
+"size": 16,
+"value": 0,
+"report_bytes": "02 00 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigCurrent",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "02 00 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigCurrent",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 32,
+"size": 16,
+"value": 0,
+"report_bytes": "02 00 00 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigFrequency",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 0,
+"size": 8,
+"value": 50,
+"report_bytes": "03 32 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigFrequency",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 8,
+"size": 8,
+"value": 0,
+"report_bytes": "03 32 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigFrequency",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 16,
+"size": 8,
+"value": 0,
+"report_bytes": "03 32 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iProduct",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 0,
+"size": 8,
+"value": 2,
+"report_bytes": "04 02 03 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iManufacturer",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 16,
+"size": 8,
+"value": 1,
+"report_bytes": "04 02 03 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iOEMInformation",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 24,
+"size": 8,
+"value": 1,
+"report_bytes": "04 02 03 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.CapacityMode",
+"type": "Feature",
+"report_id": "0x05",
+"offset": 24,
+"size": 2,
+"value": 2,
+"report_bytes": "05 ff ff ff 0e",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Rechargeable",
+"type": "Feature",
+"report_id": "0x05",
+"offset": 26,
+"size": 1,
+"value": 1,
+"report_bytes": "05 ff ff ff 0e",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BatteryPresent",
+"type": "Feature",
+"report_id": "0x05",
+"offset": 27,
+"size": 1,
+"value": 1,
+"report_bytes": "05 ff ff ff 0e",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.DesignCapacity",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "06 64 64 14",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.FullChargeCapacity",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 8,
+"size": 8,
+"value": 100,
+"report_bytes": "06 64 64 14",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.WarningCapacityLimit",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 16,
+"size": 8,
+"value": 20,
+"report_bytes": "06 64 64 14",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "07 64 24 00 ff ff",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RunTimeToEmpty",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 8,
+"size": 16,
+"value": 36,
+"report_bytes": "07 64 24 00 ff ff",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ACPresent",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Charging",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 1,
+"size": 1,
+"value": 1,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Discharging",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BelowRemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 3,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.BatteryPresent",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 4,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.FullyCharged",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 5,
+"size": 1,
+"value": 1,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.FullyDischarged",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 6,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Overload",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 7,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.NeedReplacement",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 8,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.OverTemperature",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 9,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.CommunicationLost",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 10,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.VoltageOutOfRange",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 11,
+"size": 1,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Used",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 12,
+"size": 1,
+"value": 1,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.00840091",
+"type": "Feature",
+"report_id": "0x08",
+"offset": 13,
+"size": 3,
+"value": 0,
+"report_bytes": "08 23 10",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Voltage",
+"type": "Feature",
+"report_id": "0x09",
+"offset": 0,
+"size": 16,
+"value": 0,
+"report_bytes": "09 28 00 00 00",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.PowerSummary.Voltage",
+"type": "Feature",
+"report_id": "0x09",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "09 28 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Current",
+"type": "Feature",
+"report_id": "0x0a",
+"offset": 0,
+"size": 16,
+"value": 0,
+"report_bytes": "0a 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Current",
+"type": "Feature",
+"report_id": "0x0a",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "0a 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x0b",
+"offset": 0,
+"size": 16,
+"value": 2,
+"report_bytes": "0b ef 00 00 00",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.PowerSummary.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x0b",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "0b ef 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigCurrent",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 0,
+"size": 16,
+"value": 0,
+"report_bytes": "0c 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigCurrent",
+"type": "Feature",
+"report_id": "0x0c",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "0c 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigFrequency",
+"type": "Feature",
+"report_id": "0x0d",
+"offset": 0,
+"size": 8,
+"value": 50,
+"report_bytes": "0d 32 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigFrequency",
+"type": "Feature",
+"report_id": "0x0d",
+"offset": 8,
+"size": 8,
+"value": 0,
+"report_bytes": "0d 32 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigApparentPower",
+"type": "Feature",
+"report_id": "0x0e",
+"offset": 0,
+"size": 16,
+"value": 90,
+"report_bytes": "0e 5a 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigApparentPower",
+"type": "Feature",
+"report_id": "0x0e",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "0e 5a 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigActivePower",
+"type": "Feature",
+"report_id": "0x0f",
+"offset": 0,
+"size": 16,
+"value": 50,
+"report_bytes": "0f 32 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.ConfigActivePower",
+"type": "Feature",
+"report_id": "0x0f",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "0f 32 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PercentLoad",
+"type": "Feature",
+"report_id": "0x10",
+"offset": 0,
+"size": 16,
+"value": 9,
+"report_bytes": "10 09 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PercentLoad",
+"type": "Feature",
+"report_id": "0x10",
+"offset": 16,
+"size": 16,
+"value": 0,
+"report_bytes": "10 09 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Test",
+"type": "Feature",
+"report_id": "0x11",
+"offset": 0,
+"size": 8,
+"value": 6,
+"report_bytes": "11 06",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Test",
+"type": "Input",
+"report_id": "0x11",
+"offset": 0,
+"size": 8,
+"value": 6,
+"report_bytes": "11 06",
+"match": "raw_equal"
+}
+]
+}
