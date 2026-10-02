@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Firmware builds, one per ESP-IDF version the targets need: the S3 boards on
+# 5.4, the ESP32-P4 board on 5.5. They run without a board and without a UPS.
+#
+# WHAT IS NOT HERE, and why. The project's design checks (power budget, BOM,
+# placement, ERC, DRC, the pin-map lockstep and the rest) live in tools/test/,
+# which tools/publish.sh keeps out of this repository on purpose, so they
+# cannot run here. Nine of them need KiCad itself, and the official KiCad
+# container images stop at 9.0 while the board files are KiCad 10. They run in
+# the private repository, as `tools/test/run-all.sh` and its CI, and
+# tools/release.sh refuses a release until they pass.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    name: firmware builds (ESP-IDF ${{ matrix.idf }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        idf: ['v5.4']
+    container: espressif/idf:${{ matrix.idf }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # rm -f firmware/sdkconfig: ESP-IDF reads SDKCONFIG_DEFAULTS only when
+      # generating it, so a leftover file would build whatever board it names.
+      - name: build for the Rev A board
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          rm -f firmware/sdkconfig
+          idf.py -C firmware -B firmware/build \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva build
+      - name: the build must be Rev A
+        shell: bash
+        run: |
+          grep -qa "UPS to ESP32 Module Rev A" firmware/build/ups-adaptor-reva.bin || {
+            echo "::error::the Rev A build is not Rev A"; exit 1; }
+          echo "built as Rev A"
+
+  # The ESP32-P4 board: a different chip, so a different ESP-IDF and its own
+  # build directory, sdkconfig and dependency lock (the tracked
+  # dependencies.lock belongs to the 5.4 builds).
+  firmware-p4poe:
+    name: firmware build, P4-PoE (ESP-IDF v5.5.5)
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
+    steps:
+      - uses: actions/checkout@v4
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: build for the P4-PoE board
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -C firmware -B firmware/build-p4poe \
+                 -DIDF_TARGET=esp32p4 \
+                 -DSDKCONFIG="$PWD/firmware/build-p4poe/sdkconfig" \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults.p4poe" \
+                 -DDEPENDENCIES_LOCK=dependencies.lock.p4poe \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-p4poe build
+      - name: the build must be the P4-PoE board
+        shell: bash
+        run: |
+          f=firmware/build-p4poe/ups-adaptor-p4poe.bin
+          grep -qa "UPS to ESP32 Module P4-PoE" "$f" || {
+            echo "::error::the P4-PoE build is not P4-PoE"; exit 1; }
+          ! grep -qa "UPS to ESP32 Module Rev A" "$f" || {
+            echo "::error::the P4-PoE build contains a Rev A board name"; exit 1; }
+          grep -q "^CONFIG_ESP32P4_REV_MIN_100=y" firmware/build-p4poe/sdkconfig || {
+            echo "::error::not built for ESP32-P4 v1.x silicon"; exit 1; }
+          echo "built as P4-PoE"
