@@ -1,0 +1,123 @@
+menu "UPS to ESP32 Module board"
+
+choice UPSA_BOARD
+    prompt "Target board"
+    default UPSA_BOARD_REV_A
+    help
+        Selects the pin map and peripheral set.
+
+        Rev A is the board that exists and ships. Rev A OLED is the same PCB,
+        built as a separate identity for a module labelled VCC, GND, SCL, SDA
+        seated in J3; see docs/hardware.md, "OLED module compatibility". The
+        Freenove devkit target that firmware was brought up on before Rev A
+        was made has been removed.
+
+        Application code must never reference a GPIO number directly. Use
+        the BOARD_* macros from board.h.
+
+config UPSA_BOARD_REV_A
+    bool "UPS to ESP32 Module, Rev A PCB"
+
+config UPSA_BOARD_REVA_OLED
+    bool "UPS to ESP32 Module, Rev A PCB, with a VCC-first OLED module fitted"
+    select UPSA_REVA_OLED_VCC_FIRST
+    help
+        Same PCB as the plain Rev A choice above. A separate board IDENTITY,
+        not a separate board: that is what makes it safe to give this build
+        to someone who is not sitting at a bench. A plain Rev A board can
+        never be offered this image, and a board already running it can
+        never be silently offered a plain Rev A release that would leave its
+        screen dark, because the two carry different BOARD_OTA_TARGET /
+        BOARD_IMAGE_NAME identities and the OTA client refuses a mismatch.
+
+        ONLY for a display module whose pins are labelled VCC, GND, SCL,
+        SDA, in that order. Rev A's J3 reads 3V3, GND, SDA, SCL from pin 1:
+        a standard GND-first module seated in it is powered backwards and
+        dies, and no firmware setting can prevent that -- read the labels on
+        the module in hand before plugging it in, with VCC into J3's square
+        pad. Selecting this pulls in UPSA_REVA_OLED_VCC_FIRST and the display
+        automatically; neither needs setting separately.
+
+config UPSA_BOARD_P4_POE
+    bool "Waveshare ESP32-P4-ETH on PoE (ESP32-P4, wired Ethernet)"
+    select UPSA_NET_ETHERNET
+    help
+        A bought development board, not our PCB. ESP32-P4, 32 MB flash,
+        100 Mbps Ethernet (IP101 PHY) and no Wi-Fi radio. Needs
+        sdkconfig.defaults.p4poe and IDF_TARGET=esp32p4 (ESP-IDF 5.5 or
+        later). The UPS connects to the board's 4-pin native USB header
+        through a USB-A pigtail; its VBUS is the board's 5V rail, so there is
+        no power-cycle recovery on this target.
+
+endchoice
+
+# The network is wired Ethernet instead of Wi-Fi. Not user-visible: a fact about
+# the board. Boards without a radio cannot offer a setup access point either.
+config UPSA_NET_ETHERNET
+    bool
+
+# Which boards can carry a display at all. Not user-visible: it is a fact about
+# the board, and UPSA_HAVE_OLED is hidden entirely where it is false.
+#
+# NOT plain Rev A. Its OLED header reads 3V3, GND, SDA, SCL from pin 1; the
+# modules people buy read GND, VCC, SCL, SDA, so one seated in it is powered
+# backwards. That happened to the first Rev A board on 2026-09-25: the board
+# got hot and the module died. Offering a display build for plain Rev A
+# invites a repeat -- UPSA_BOARD_REVA_OLED above is the one board choice that
+# carries it, because that choice means the VCC-first module is fitted.
+config UPSA_BOARD_OLED_OK
+    bool
+    default y if UPSA_BOARD_REVA_OLED
+
+# Internal, and not independently settable: pulled in by UPSA_BOARD_REVA_OLED
+# above, never set on its own. It used to be a standalone "bench only" toggle
+# that could sit on top of plain Rev A, which meant a build could carry the
+# VCC-first pin swap without any OTA identity saying so -- exactly the gap
+# that made the swap unsafe to hand to anyone off the bench. Tying it to the
+# board choice instead means the pin swap and the identity that advertises it
+# can never drift apart.
+config UPSA_REVA_OLED_VCC_FIRST
+    bool
+    help
+        Swaps SDA and SCL (GPIO9/GPIO8) for the display module, to match a
+        module whose own pins read VCC, GND, SCL, SDA rather than the
+        standard GND-first order. Set only by UPSA_BOARD_REVA_OLED.
+
+config UPSA_HAVE_OLED
+    bool "Enable optional I2C OLED status display"
+    depends on UPSA_BOARD_OLED_OK
+    default y if UPSA_BOARD_REVA_OLED
+    default n
+    help
+        The web interface is the primary UI. The OLED is a debug convenience
+        and is the single most expensive item on the BOM, so it is off by
+        default, and firmware does not require it.
+
+        Only offered on boards whose header takes a standard module as
+        seated. Plain Rev A's does not; see UPSA_BOARD_OLED_OK.
+
+config UPSA_MEM_DIAG
+    bool "Log heap and task stack use every 10 s (diagnostics)"
+    default n
+    select FREERTOS_USE_TRACE_FACILITY
+    help
+        Logs internal heap free, lowest-ever free and largest free block, and
+        every task's unused stack. For sizing stacks and buffers against
+        measured use rather than guesses; off in releases, where the trace
+        facility it needs costs a little RAM of its own.
+
+config UPSA_CRASH_TEST
+    bool "Bench only: cause an interrupt-watchdog crash a minute after boot"
+    default n
+    help
+        Tests the crash recorder (components/crashlog): one minute after boot
+        a task turns interrupts off and spins until the interrupt watchdog
+        resets the board, which is what boards in the field have been seen to
+        do. The next boot shows where on the page. Never in a release.
+
+config UPSA_VBUS_CYCLE_MS
+    int "VBUS off-time when power-cycling a wedged UPS interface (ms)"
+    default 2000
+    range 250 10000
+
+endmenu
