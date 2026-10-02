@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Waveshare ESP32-P4-ETH on PoE. A different chip, so it does not layer on the
+# S3 defaults: build it with ESP-IDF 5.5 or later as
+#   idf.py -B build-p4poe -DIDF_TARGET=esp32p4 \
+#       -DSDKCONFIG=sdkconfig.p4poe \
+#       -DSDKCONFIG_DEFAULTS="sdkconfig.defaults.p4poe" build
+# Everything shared with the S3 targets is repeated here on purpose: the S3
+# file sets CONFIG_IDF_TARGET and 4 MB flash, both wrong for this chip.
+
+CONFIG_IDF_TARGET="esp32p4"
+CONFIG_UPSA_BOARD_P4_POE=y
+
+# 32 MB flash: two 3 MB OTA slots, and the rest left as a spare data partition.
+CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-p4poe.csv"
+
+# Console on the CH343's UART, the USB-C used for flashing. The P4's native
+# USB is the UPS port.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# The P4 has no Bluetooth radio of its own; stated so a dependency never adds one.
+CONFIG_BT_ENABLED=n
+
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_INT_WDT=y
+CONFIG_LWIP_MAX_SOCKETS=16
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP=n
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+CONFIG_ESP_TIMER_TASK_STACK_SIZE=2560
+CONFIG_MDNS_TASK_STACK_SIZE=3584
+
+# 32 MB of PSRAM is stacked in the P4's package. Left off until something needs
+# it, as on Rev A: the NUT server and page fit in internal RAM.
+
+CONFIG_UPSA_FLEET_URL="https://gffauvhiqmpzkldtmfqn.supabase.co"
+CONFIG_UPSA_FLEET_KEY="sb_publishable_uOtmJ4x81-MDidqRUpT1AA_b9ev9fR0"
+
+# The Waveshare board carries ESP32-P4 silicon v1.x (this one reports v1.3).
+# IDF 5.5 builds for v3.x by default, and the bootloader then refuses to run
+# on, or be flashed to, this chip.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_100=y
