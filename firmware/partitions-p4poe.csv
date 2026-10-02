@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# 32MB flash, Waveshare ESP32-P4-ETH. Two 3MB app slots; the rest is a spare
+# data partition (custom subtype, so no IDF component claims it), kept free
+# for later. The P4 bootloader lives at 0x2000 and the table at 0x8000.
+#
+# Name,     Type, SubType, Offset,   Size,  Flags
+nvs,        data, nvs,     0x9000,   0x6000,
+otadata,    data, ota,     0xf000,   0x2000,
+phy_init,   data, phy,     0x11000,  0x1000,
+ota_0,      app,  ota_0,   0x20000,  0x300000,
+ota_1,      app,  ota_1,   0x320000, 0x300000,
+spare,       data, 0x40,    0x620000, 0x19E0000,
