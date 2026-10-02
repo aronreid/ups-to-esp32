@@ -1,0 +1,64 @@
+APC Back-UPS RS 1000G (051d:0002) -- what its self-test commands actually do
+2026-09-27, Rev A bench board, firmware a90cadd+ (v0.10-rc8 line),
+charge 100%, runtime estimate ~2660-2808 s.
+
+The descriptor has one standard Test control: report 33, usage Power Device
+0x58 "Test", Input and Feature, logical 0..6. The board writes 1 quick, 2 deep,
+3 stop, as for the CyberPower. It also has many vendor usages on page 0xff86;
+none were written. Status polled every 0.5-1 s over /api/status.
+
+test_result reads 6 "No test initiated" whenever a test is accepted but not
+yet running, and during the test; this unit never reports 5 "In progress".
+During a test ups.status is "OL DISCHRG" (17), never OB.
+
+test.battery.start.quick   (Test = 1)
+  0.2  status 1   result 6
+ 10.9  status 17  result 6          <- ~10 s delay before it starts
+ 16.8  status 17  result 6
+ 19.1  status 1   result 1 "Done and passed"
+  -> ~8 s of discharge
+
+test.battery.start.deep    (Test = 2)
+  0.2 16:49:01 status 1 result 1 charge 100.0 runtime 2808.0
+  2.5 16:49:03 status 1 result 6 charge 100.0 runtime 2808.0
+  13.2 16:49:14 status 1 result 6 charge 100.0 runtime 2660.0
+  49.6 16:49:50 status 1 result 6 charge 100.0 runtime 2528.0
+  63.8 16:50:05 status 1 result 6 charge 100.0 runtime 2408.0
+  94.6 16:50:35 status 1 result 6 charge 100.0 runtime 2528.0
+  96.9 16:50:38 status 1 result 6 charge 100.0 runtime 2660.0
+  -> LOOKED ignored over USB, and was not. See "Deep test, corrected" below.
+
+test.battery.stop          (Test = 3), sent 2.6 s into a quick test
+  0.3  status 1   result 6
+ 10.4  status 17  result 6
+ 13.0  -> stop sent, accepted
+ 18.7  status 1   result 1 "Done and passed"
+  -> no visible effect: the test ran its normal length and reported a pass,
+     not 4 "Aborted". An 8 s test is a short window, so "ignored" is likely
+     but not proven.
+
+Deep test, corrected (same day)
+  The deep test sent at 16:49:01 DID start. For ~15 minutes the UPS's USB
+  reports stayed frozen at "OL, 100%, result 6 No test initiated" -- the board
+  polled them fresh (GET_REPORT) every cycle and got the same stale answers.
+  The owner then power-cycled the UPS's USB from the web page (the VBUS
+  switch); on re-enumeration it read OL DISCHRG, result 5 "In progress",
+  charge 83%, battery 24.5 V. Logged every 10 s from there
+  (deep-test-after-usb-cycle.log):
+
+    17:05:47  OL DISCHRG  in progress  83%  24.59 V  load 10%
+    17:19:41  OL DISCHRG  in progress  63%  24.32 V
+    17:29:01  OL DISCHRG  in progress  25%  22.71 V
+    17:29:11  OL CHRG     Done and passed  22%  25.13 V
+
+  ~40 minutes, 100% -> 22% at ~10% load, then back to charging on its own.
+  apcupsd's USB calibration expects the unit to stop at about 25%.
+
+  During the 1-minute watch after the command, the one sign was the runtime
+  estimate falling 2808 -> 2408 s while charge read a frozen 100%.
+
+Conclusion: the RS 1000G has a real deep test over the standard Test control
+(value 2), undocumented by APC (its manual and PowerChute Personal offer only
+a self-test) but used by NUT's apc-hid and apcupsd. Its USB reports can freeze
+while the test runs; a USB re-enumeration unfreezes them. Quick test works.
+Stop: no visible effect, as below.
