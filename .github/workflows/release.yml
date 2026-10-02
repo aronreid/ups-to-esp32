@@ -1,0 +1,430 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Builds every board target on a version tag and attaches them to the release.
+#
+# The asset NAMES are load-bearing: firmware/components/ota/ota.c asks GitHub
+# for the latest release and installs the asset called
+# ups-adaptor-<target>.bin, where target comes from BOARD_OTA_TARGET. Rev A
+# OLED shares Rev A's PCB and pin map but is a separate identity on purpose,
+# so a plain Rev A board is never offered a build that assumes a display is
+# fitted and a board running that build is never silently offered a plain
+# release that leaves its screen dark. Renaming any of these silently breaks
+# updates, or worse, installs the wrong one.
+#
+# Devices follow releases, not branches: publishing one is the only thing that
+# moves them, so a push that was never meant for hardware cannot reach any.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # The P4-PoE board is a different chip (RISC-V ESP32-P4, silicon v1.x) and
+  # needs ESP-IDF 5.5, where the S3 boards are built on 5.4, so it is its own
+  # job in its own container. It does not publish: the build job below
+  # downloads what this one made and publishes everything together, because
+  # two jobs creating the same release race each other.
+  #
+  # Its own build directory, SDKCONFIG, SDKCONFIG_DEFAULTS and dependency lock,
+  # for the reason the S3 builds spell out: ESP-IDF reads SDKCONFIG_DEFAULTS
+  # only when generating sdkconfig, and the tracked dependencies.lock belongs
+  # to the 5.4 builds.
+  build-p4poe:
+    name: build P4-PoE
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: build P4-PoE
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -C firmware -B firmware/build-p4poe \
+                 -DIDF_TARGET=esp32p4 \
+                 -DSDKCONFIG="$PWD/firmware/build-p4poe/sdkconfig" \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults.p4poe" \
+                 -DDEPENDENCIES_LOCK=dependencies.lock.p4poe \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-p4poe \
+                 -DPROJECT_VER="${GITHUB_REF_NAME}" build
+          cp firmware/build-p4poe/ups-adaptor-p4poe.bin ups-adaptor-p4poe.bin
+          cp firmware/build-p4poe/ups-adaptor-p4poe.elf ups-adaptor-p4poe.elf
+          # A single-file image for a first flash over USB. The P4's
+          # bootloader sits at 0x2000, not 0x0 as on the S3.
+          python -m esptool --chip esp32p4 merge_bin \
+            -o ups-adaptor-p4poe-full.bin \
+            --flash_mode dio --flash_size 32MB --flash_freq 80m \
+            0x2000  firmware/build-p4poe/bootloader/bootloader.bin \
+            0x8000  firmware/build-p4poe/partition_table/partition-table.bin \
+            0xf000  firmware/build-p4poe/ota_data_initial.bin \
+            0x20000 firmware/build-p4poe/ups-adaptor-p4poe.bin
+
+      - name: gates -- P4-PoE
+        shell: bash
+        run: |
+          c=firmware/build-p4poe/sdkconfig
+          grep -q "^CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y" "$c" \
+            || { echo "::error::rollback is NOT enabled in $c"; exit 1; }
+          if grep -q "^CONFIG_UPSA_CRASH_TEST=y" "$c"; then
+            echo "::error::a release image has the crash-test switch on"; exit 1
+          fi
+          # The silicon this image is built for. A board is v1.x; the default
+          # for ESP-IDF 5.5 is v3.x, whose bootloader refuses to run on it.
+          grep -q "^CONFIG_ESP32P4_REV_MIN_100=y" "$c" \
+            || { echo "::error::the image is not built for ESP32-P4 v1.x silicon"; exit 1; }
+          slot=$((0x300000))
+          sz=$(stat -c%s ups-adaptor-p4poe.bin)
+          pct=$((sz * 100 / slot))
+          echo "ups-adaptor-p4poe.bin: $sz bytes, ${pct}% of the $slot-byte slot"
+          [ "$pct" -lt 80 ] || { echo "::error::the image fills ${pct}% of its partition"; exit 1; }
+          name=$(python3 -c "import sys;d=open(sys.argv[1],'rb').read();print(d[0x50:0x70].split(b'\0')[0].decode())" ups-adaptor-p4poe.bin)
+          echo "project_name=$name"
+          [ "$name" = "ups-adaptor-p4poe" ] \
+            || { echo "::error::the image declares '$name', expected 'ups-adaptor-p4poe'"; exit 1; }
+          grep -qa "UPS to ESP32 Module P4-PoE" ups-adaptor-p4poe.bin \
+            || { echo "::error::the image does not contain its board name"; exit 1; }
+          # No S3 board name may be in it: it would be the wrong build.
+          ! grep -qa "UPS to ESP32 Module Rev A" ups-adaptor-p4poe.bin \
+            || { echo "::error::the P4 image contains a Rev A board name"; exit 1; }
+          echo "the P4-PoE image is what it claims to be"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: p4poe
+          path: |
+            ups-adaptor-p4poe.bin
+            ups-adaptor-p4poe-full.bin
+            ups-adaptor-p4poe.elf
+          if-no-files-found: error
+
+  build:
+    name: build and publish
+    needs: build-p4poe
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # the app version comes from git describe
+
+      # ESP-IDF stamps the image with `git describe`. In a container the checkout
+      # belongs to another uid and git refuses to read it as "dubious
+      # ownership", which silently stamps the image "1" instead of the tag --
+      # and a device comparing "1" to the tag would re-offer this release
+      # forever.
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # What the P4-PoE job built. Downloaded here so its files are published
+      # in the same release, and checksummed and version-checked with the rest.
+      - uses: actions/download-artifact@v4
+        with:
+          name: p4poe
+
+      # Each target gets its OWN build directory, and names its SDKCONFIG_DEFAULTS
+      # explicitly. Both matter. ESP-IDF reads SDKCONFIG_DEFAULTS only when
+      # generating sdkconfig, so a leftover sdkconfig makes the next target
+      # inherit the previous board -- and because CMake CACHES SDKCONFIG_DEFAULTS
+      # per build directory, deleting sdkconfig while reusing a directory
+      # regenerates the SAME config from the cached value. Relying on Rev A
+      # being built first, into a fresh directory, would make the correctness of
+      # a shipped image depend on the ORDER of two steps in this file.
+      # That shipped: ups-adaptor-freenove.bin was a Rev A build under the
+      # devkit's name, a devkit installed it, and came up believing it had a
+      # load switch on GPIO4.
+      - name: build Rev A
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          rm -f firmware/sdkconfig
+          idf.py -C firmware -B firmware/build \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva \
+                 -DPROJECT_VER="${GITHUB_REF_NAME}" build
+          cp firmware/build/ups-adaptor-reva.bin ups-adaptor-reva.bin
+          # The ELF, so a crash a board records (components/crashlog) can be
+          # decoded against exactly the build it happened in.
+          cp firmware/build/ups-adaptor-reva.elf ups-adaptor-reva.elf
+          # A SINGLE-FILE image, flashable at 0x0 with no offsets to get wrong.
+          # The app binary alone is only installable onto a board that already
+          # has a bootloader, a partition table and an otadata -- which a board
+          # fresh from the fab does not. Publishing only the app means the
+          # documented "first flash" command produces a board that does
+          # nothing, and the three files needed to fix that are not in the
+          # release at all.
+          python -m esptool --chip esp32s3 merge_bin \
+            -o ups-adaptor-reva-full.bin \
+            --flash_mode dio --flash_size 4MB --flash_freq 80m \
+            0x0     firmware/build/bootloader/bootloader.bin \
+            0x8000  firmware/build/partition_table/partition-table.bin \
+            0xf000  firmware/build/ota_data_initial.bin \
+            0x20000 firmware/build/ups-adaptor-reva.bin
+
+      # Rev A OLED: the same PCB and pin map as plain Rev A, built as its own
+      # board identity for a VCC-first display module fitted in J3. Its own
+      # build directory and sdkconfig, for the reason above. This is what
+      # makes it safe to give this build to someone else instead of hand-
+      # flashing every board at a bench: a plain Rev A board can never be
+      # offered it, and it can never be silently downgraded to a plain Rev A
+      # release that would leave its screen dark, because the OTA client
+      # only ever compares an image against its own board identity.
+      - name: build Rev A OLED
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -C firmware -B firmware/build-reva-oled \
+                 -DSDKCONFIG="$PWD/firmware/build-reva-oled/sdkconfig" \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.reva-oled" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva-oled \
+                 -DPROJECT_VER="${GITHUB_REF_NAME}" build
+          cp firmware/build-reva-oled/ups-adaptor-reva-oled.bin ups-adaptor-reva-oled.bin
+          cp firmware/build-reva-oled/ups-adaptor-reva-oled.elf ups-adaptor-reva-oled.elf
+          python -m esptool --chip esp32s3 merge_bin \
+            -o ups-adaptor-reva-oled-full.bin \
+            --flash_mode dio --flash_size 4MB --flash_freq 80m \
+            0x0     firmware/build-reva-oled/bootloader/bootloader.bin \
+            0x8000  firmware/build-reva-oled/partition_table/partition-table.bin \
+            0xf000  firmware/build-reva-oled/ota_data_initial.bin \
+            0x20000 firmware/build-reva-oled/ups-adaptor-reva-oled.bin
+
+      # Gates. Each one exists because its absence shipped something that would
+      # have needed a person and a cable to recover. They FAIL the release
+      # rather than warn: a warning in a log nobody reads is not a gate.
+      - name: gate -- rollback must be compiled in
+        shell: bash
+        run: |
+          for c in firmware/sdkconfig firmware/build-reva-oled/sdkconfig; do
+            if ! grep -q "^CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y" "$c"; then
+              echo "::error::rollback is NOT enabled in $c."
+              echo "::error::Without it a bad image cannot revert, and this project"
+              echo "::error::has already shipped two images that boot-looped."
+              exit 1
+            fi
+          done
+          echo "rollback: enabled"
+
+      - name: gate -- no bench-only options in a release
+        shell: bash
+        run: |
+          if grep -q "^CONFIG_UPSA_CRASH_TEST=y" firmware/sdkconfig firmware/build-reva-oled/sdkconfig; then
+            echo "::error::a release image has the crash-test switch on: it would crash every board"
+            exit 1
+          fi
+          # UPSA_REVA_OLED_VCC_FIRST drives a display on plain Rev A, which is
+          # safe only with a VCC-first module. Shipped there it would invite a
+          # customer to plug in a standard module -- which Rev A powers
+          # backwards. Deliberately NOT checked against build-reva-oled: that
+          # target exists precisely to carry this set, under its own board
+          # identity, which is what makes it safe.
+          if grep -q "^CONFIG_UPSA_REVA_OLED_VCC_FIRST=y" firmware/sdkconfig; then
+            echo "::error::a release image has the Rev A OLED display option set outside the reva-oled target"
+            exit 1
+          fi
+          echo "no bench-only options"
+
+      - name: gate -- the image must fit with room to grow
+        shell: bash
+        run: |
+          slot=$((0x1F0000))
+          for f in ups-adaptor-reva.bin ups-adaptor-reva-oled.bin; do
+            sz=$(stat -c%s "$f")
+            pct=$((sz * 100 / slot))
+            echo "$f: $sz bytes, ${pct}% of the $slot-byte slot"
+            # 80% is the line: an OTA writes the OTHER slot, so an image that
+            # nearly fills one still installs -- but nothing is left for the
+            # growth that put it there.
+            if [ "$pct" -ge 80 ]; then
+              echo "::error::$f fills ${pct}% of its partition"; exit 1
+            fi
+          done
+
+      - name: gate -- each image must BE the board it is named for
+        shell: bash
+        run: |
+          # v0.02c shipped one board's build under the other's name when there
+          # were two, and now there are two again. A plain Rev A board must
+          # never install the OLED image, and a board running the OLED image
+          # must never be silently downgraded to a plain Rev A build that
+          # leaves its screen dark. Identity is checked from two independent
+          # places -- the app descriptor's project name, which the OTA client
+          # also enforces on-device, and the BOARD_NAME string the firmware
+          # prints.
+          fail=0
+          for pair in "ups-adaptor-reva.bin:ups-adaptor-reva:UPS to ESP32 Module Rev A" \
+                      "ups-adaptor-reva-oled.bin:ups-adaptor-reva-oled:UPS to ESP32 Module Rev A (OLED)"; do
+            f="${pair%%:*}"; rest="${pair#*:}"; want="${rest%%:*}"; board="${rest#*:}"
+            name=$(python3 -c "import sys;d=open(sys.argv[1],'rb').read();print(d[0x50:0x70].split(b'\0')[0].decode())" "$f")
+            echo "  $f: project_name=$name"
+            [ "$name" = "$want" ] || { echo "::error::$f declares '$name', expected '$want'"; fail=1; }
+            grep -qa "$board" "$f" || { echo "::error::$f does not contain '$board'"; fail=1; }
+            for other in "UPS to ESP32 Module Rev A" "UPS to ESP32 Module Rev A (OLED)"; do
+              # "Rev A" is a substring of "Rev A (OLED)"'s own correct name, so
+              # skip whenever $other is contained IN $board, not just equal to
+              # it -- otherwise the OLED image would always fail against its
+              # own name.
+              [[ "$board" == *"$other"* ]] && continue
+              ! grep -qa "$other" "$f" || { echo "::error::$f also contains '$other'"; fail=1; }
+            done
+          done
+          [ "$fail" -eq 0 ] || exit 1
+          echo "each image is the board it claims to be"
+
+      # The version a device compares against is the one baked into the image.
+      # If it does not match the tag, every device installs this release and
+      # still believes it needs it -- offered it forever.
+      #
+      # The builds above stamp it from the tag itself (-DPROJECT_VER), not from
+      # `git describe`. v0.06 was tagged on the commit v0.06-rc2 was already on,
+      # describe picked the rc tag, and both images shipped saying v0.06-rc2.
+      #
+      # And this check FAILS when it cannot read a version. It used to pass: it
+      # grepped esptool for "Project version" (esptool prints "App version")
+      # in firmware/build/ups-adaptor.bin (renamed long ago), read nothing,
+      # and treated nothing as a match -- so it had never checked anything,
+      # and it waved v0.06 through. The descriptor is now read directly from
+      # each PUBLISHED file: esp_app_desc_t sits right after the 24-byte image
+      # header and the first 8-byte segment header, magic 0xABCD5432, version
+      # at +16 and project name at +48, 32 bytes each.
+      - name: check each image's version matches the tag
+        shell: bash
+        run: |
+          python3 - "${GITHUB_REF_NAME}" ups-adaptor-reva.bin ups-adaptor-reva-oled.bin ups-adaptor-p4poe.bin <<'PY'
+          import struct, sys
+          tag, bad = sys.argv[1], 0
+          for f in sys.argv[2:]:
+              d = open(f, 'rb').read()
+              magic = struct.unpack_from('<I', d, 32)[0] if len(d) > 112 else 0
+              ver = d[48:80].split(b'\0')[0].decode(errors='replace') if magic == 0xABCD5432 else ''
+              print(f"{f}: tag={tag} image={ver or 'UNREADABLE'}")
+              if ver != tag:
+                  print(f"::error::{f} says '{ver or 'unreadable'}', tag is '{tag}'. Devices "
+                        "compare the two, so every board would be offered this forever.")
+                  bad = 1
+          sys.exit(bad)
+          PY
+
+      # A tag containing -rc is published as a PRERELEASE. GitHub's
+      # /releases/latest excludes prereleases, and that is the endpoint every
+      # device asks -- so a release candidate is invisible to the fleet by
+      # construction, and can be flashed to a bench board by hand without any
+      # risk of a field device taking it.
+      - name: is this a release candidate?
+        id: rc
+        shell: bash
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            *-rc*|*-dev*) echo "pre=true"  >> "$GITHUB_OUTPUT"; echo "pre-release: only dev (and, when named, debug) boards see this";;
+            *)     echo "pre=false" >> "$GITHUB_OUTPUT"; echo "production release: every device will be offered this";;
+          esac
+
+      # Checksums, so a download can be checked rather than trusted. The OTA
+      # client verifies the image's own descriptor before it writes a byte, but
+      # someone flashing by hand over USB has nothing to check against.
+      - name: checksums
+        shell: bash
+        run: |
+          sha256sum ups-adaptor-*.bin > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # The release page's text, and what a board's update card shows. The
+      # annotated tag's own message goes under "## What changed" -- the board
+      # abridges the bullets there (firmware/components/ota/ota_notes.c) and
+      # links here for the rest -- then the fixed instructions below it.
+      #
+      # generate_release_notes is off: the public repository is one orphan
+      # commit per publish, so GitHub's generated changelog is always a single
+      # useless line, and every byte of this body is also a byte a board must
+      # download and parse on each check.
+      - name: release notes from the tag
+        shell: bash
+        run: |
+          # actions/checkout can leave a tag that triggered the run as a
+          # lightweight ref; fetch the annotated object so its message exists.
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          notes=$(git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents:body)')
+          if [ -z "$(printf '%s' "$notes" | grep -E '^[[:space:]]*[-*] ')" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} has no bullet list in its message."
+            echo "::error::The update card shows those bullets; write the release notes in the tag."
+            exit 1
+          fi
+          {
+            printf '## What changed\n\n%s\n\n---\n\n' "$notes"
+            cat <<'STATIC'
+          Firmware for the UPS to ESP32 Module.
+
+          **Updating a board already running:** open its web UI, go to
+          Firmware, and press Check for updates. The board installs the asset
+          for its own target, writes it to the spare slot, and runs it after a
+          restart. If the new image does not come back, the bootloader reverts
+          to the previous one by itself.
+
+          **First flash, over USB: use the `-full` image.** It contains the
+          bootloader, partition table, OTA selector and the application, and
+          goes to offset 0 with nothing to get wrong:
+
+          ```
+          esptool.py --chip esp32s3 write_flash 0x0 ups-adaptor-reva-full.bin
+          ```
+
+          (`ups-adaptor-reva-oled-full.bin` on a Rev A board with the OLED
+          display fitted; read "OLED module compatibility" in the hardware
+          docs before wiring one.)
+
+          A board fresh from the fab has none of those things, so the plain
+          application binary is not enough on its own.
+
+          **The plain `.bin` files are the application only**, at offset
+          `0x20000`. They are what the OTA client downloads, and what to use
+          if you are replacing the application on a board that is already
+          running.
+
+          `ups-adaptor-reva*` is for the Rev A board, `ups-adaptor-reva-oled*`
+          for a Rev A board with the OLED display fitted. Every image
+          declares its board in its app descriptor, and a device refuses
+          anything that is not its own.
+
+          `ups-adaptor-p4poe*` is for the Waveshare ESP32-P4-ETH board on PoE,
+          a different chip with no Wi-Fi. Its first flash is
+          `esptool.py --chip esp32p4 write_flash 0x0 ups-adaptor-p4poe-full.bin`.
+          It is for ESP32-P4 silicon v1.x; the bootloader refuses a newer chip
+          revision.
+
+          `SHA256SUMS.txt` covers every binary here.
+          STATIC
+          } > release-notes.md
+          # Boards on v0.06 and earlier read GitHub's whole release response
+          # into 16 KB, and a response that does not fit fails to parse -- they
+          # would stop seeing updates at all, including the one that fixes it.
+          # The rest of the response is about 8 KB; the notes must leave room.
+          sz=$(wc -c < release-notes.md)
+          echo "release notes: $sz bytes"
+          if [ "$sz" -gt 5000 ]; then
+            echo "::error::release notes are $sz bytes; keep them under 5000 so older boards can still read the release"
+            exit 1
+          fi
+
+      - name: publish
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ steps.rc.outputs.pre }}
+          files: |
+            ups-adaptor-reva.bin
+            ups-adaptor-reva-full.bin
+            ups-adaptor-reva-oled.bin
+            ups-adaptor-reva-oled-full.bin
+            ups-adaptor-reva.elf
+            ups-adaptor-reva-oled.elf
+            ups-adaptor-p4poe.bin
+            ups-adaptor-p4poe-full.bin
+            ups-adaptor-p4poe.elf
+            SHA256SUMS.txt
+          body_path: release-notes.md
