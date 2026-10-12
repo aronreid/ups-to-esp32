@@ -1,0 +1,61 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/3015#issuecomment-3155681144",
+"attachment_url": null,
+"vid": "0x075d",
+"pid": "0x0300",
+"model": "Smart-Battery",
+"nut_version": "2.8.1",
+"descriptor_file": "075d-0300-smart-battery-291b.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.DelayBeforeShutdown",
+"type": "Feature",
+"report_id": "0x09",
+"offset": 0,
+"size": 32,
+"value": 1,
+"report_bytes": "09 01 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.DelayBeforeStartup",
+"type": "Feature",
+"report_id": "0x0a",
+"offset": 0,
+"size": 32,
+"value": 257,
+"report_bytes": "0a 01 01 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Input",
+"report_id": "0x02",
+"offset": 8,
+"size": 8,
+"value": 100,
+"report_bytes": "02 83 64 70 e8 01 00 28 05",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RunTimeToEmpty",
+"type": "Input",
+"report_id": "0x02",
+"offset": 16,
+"size": 32,
+"value": 125040,
+"report_bytes": "02 83 64 70 e8 01 00 28 05",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Voltage",
+"type": "Input",
+"report_id": "0x02",
+"offset": 48,
+"size": 16,
+"value": 13,
+"report_bytes": "02 83 64 70 e8 01 00 28 05",
+"match": "scaled_by_logged_exponent_or_phys"
+}
+]
+}
