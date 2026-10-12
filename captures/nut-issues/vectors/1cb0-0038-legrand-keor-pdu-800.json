@@ -1,0 +1,71 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/1138",
+"attachment_url": "https://github.com/networkupstools/nut/files/7381977/issue_1138_full.txt",
+"vid": "0x1cb0",
+"pid": "0x0038",
+"model": "Legrand KEOR PDU 800",
+"nut_version": "2.7.4.1",
+"descriptor_file": "1cb0-0038-legrand-keor-pdu-800.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.PresentStatus.ACPresent",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.Charging",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 1,
+"size": 1,
+"value": 1,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.Discharging",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.BelowRemainingCapacityLimit",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 3,
+"size": 1,
+"value": 0,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.FullyCharged",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 4,
+"size": 1,
+"value": 1,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.RemainingTimeLimitExpired",
+"type": "Input",
+"report_id": "0x0b",
+"offset": 5,
+"size": 1,
+"value": 0,
+"report_bytes": "0b 13",
+"match": "raw_equal"
+}
+]
+}

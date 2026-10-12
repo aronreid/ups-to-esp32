@@ -1,0 +1,22 @@
+menu "My UPS Pal Tailscale"
+
+config UPSA_TAILSCALE
+    bool "Tailscale on the board"
+    depends on UPSA_BOARD_REV_B && SPIRAM
+    default n
+    help
+        Joins this board to a tailnet with MicroLink (components/microlink),
+        so NUT on 3493 and the web UI are reachable from anywhere on the
+        tailnet without a subnet router. Rev B only: MicroLink keeps half a
+        megabyte or more of control-plane state in PSRAM, which the N4 does
+        not have.
+
+        This only builds the client in. Whether it runs, and with which auth
+        key, is set on the board from the web UI and kept in NVS -- never in
+        the image, which is published for every board to download.
+
+        Build it with sdkconfig.defaults.tailscale layered after
+        sdkconfig.defaults.revb; that file sets the mbedTLS and lwIP options
+        MicroLink needs. See components/tailnet/README.md.
+
+endmenu
