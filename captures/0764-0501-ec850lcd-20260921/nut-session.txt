@@ -1,0 +1,30 @@
+BEGIN LIST VAR ups
+VAR ups device.type "ups"
+VAR ups driver.name "ups-adaptor"
+VAR ups driver.version "v0.04"
+VAR ups ups.mfr "CPS"
+VAR ups ups.model "EC850LCD"
+VAR ups ups.status "OL"
+VAR ups ups.beeper.status "enabled"
+VAR ups ups.test.result "Done and passed"
+VAR ups battery.charge "100"
+VAR ups battery.runtime "2050"
+VAR ups battery.charge.low "10"
+VAR ups input.voltage "120.0"
+VAR ups output.voltage "120.0"
+VAR ups ups.load "19"
+VAR ups ups.realpower.nominal "510"
+END LIST VAR ups
+BEGIN LIST CMD ups
+CMD ups test.battery.start.quick
+CMD ups test.battery.start.deep
+CMD ups test.battery.stop
+CMD ups beeper.disable
+CMD ups beeper.enable
+CMD ups beeper.mute
+CMD ups load.off
+END LIST CMD ups
+BEGIN LIST RW ups
+RW ups battery.charge.low "10"
+END LIST RW ups
+OK Goodbye

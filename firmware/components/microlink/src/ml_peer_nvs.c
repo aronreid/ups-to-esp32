@@ -1,0 +1,302 @@
+/**
+ * @file ml_peer_nvs.c
+ * @brief Peer NVS Persistence - Cache peers across reboots
+ *
+ * Stores peer data (public key, disco key, VPN IP, endpoints) in NVS flash.
+ * On boot, wg_mgr loads cached peers immediately so DISCO probing can start
+ * before the control plane registration completes.
+ *
+ * Storage: single NVS blob containing a packed array of peer entries.
+ * Supports up to ML_NVS_MAX_PEERS (64) with LRU eviction when full.
+ * The entire table is written as one blob (~5.8KB max) for efficiency.
+ *
+ * Reference: microlink v1 microlink_peer_registry.c
+ */
+
+#include "microlink_internal.h"
+#include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include <string.h>
+
+static const char *TAG = "ml_peer_nvs";
+
+#define PEER_NVS_NAMESPACE  "ml_peers"
+#define PEER_NVS_BLOB_KEY   "tbl"
+#ifdef CONFIG_ML_NVS_MAX_PEERS
+#define ML_NVS_MAX_PEERS    CONFIG_ML_NVS_MAX_PEERS
+#else
+#define ML_NVS_MAX_PEERS    64  /* Fallback default */
+#endif
+
+/* Compact peer storage (118 bytes per entry, v3 schema).
+ * v3 (2026-05-17): hostname_short[7] → hostname_short[32]. The 6-char
+ * truncation in v2 was making the GUI peer table show stub names like
+ * "tailsc" / "dk-tai" / "esp32-" after every reboot until the first
+ * MapResponse came in. 32 bytes fits any Tailscale short hostname (the
+ * first DNS label of an FQDN like "tailscale-105.tailnet.ts.net" is
+ * 13 chars; the longest in practice is ~20). */
+typedef struct __attribute__((packed)) {
+    uint32_t vpn_ip;                /* 4 bytes */
+    uint8_t public_key[32];         /* 32 bytes */
+    uint8_t disco_key[32];          /* 32 bytes */
+    uint16_t derp_region;           /* 2 bytes */
+    struct {
+        uint32_t ip;                /* 4 bytes */
+        uint16_t port;              /* 2 bytes */
+    } __attribute__((packed)) endpoints[2]; /* 12 bytes */
+    uint8_t endpoint_count;         /* 1 byte */
+    char hostname_short[32];        /* 32 bytes (first DNS label of FQDN) */
+    uint16_t lru_counter;           /* 2 bytes — higher = more recently used */
+    uint8_t is_exit_node;           /* 1 byte — v2: tailnet exit-node advertisement */
+} peer_nvs_entry_t;                 /* Total: 118 bytes (v3) */
+
+/* In-memory table header: magic + version makes an older blob layout
+ * obvious so we can discard it and request a fresh full peer list from
+ * the control plane on first boot after a schema bump. */
+#define PEER_NVS_MAGIC      0x4D4C5052  /* "MLPR" */
+#define PEER_NVS_VERSION    3
+
+typedef struct __attribute__((packed)) {
+    uint32_t magic;                 /* PEER_NVS_MAGIC */
+    uint16_t version;               /* PEER_NVS_VERSION */
+    uint16_t count;                 /* Number of valid entries */
+    uint16_t lru_clock;             /* Monotonic LRU counter */
+    uint16_t _pad;                  /* alignment */
+    peer_nvs_entry_t entries[ML_NVS_MAX_PEERS];
+} peer_nvs_table_t;
+
+static nvs_handle_t s_nvs = 0;
+static bool s_initialized = false;
+static peer_nvs_table_t *s_table = NULL;  /* PSRAM-allocated working copy */
+
+static void load_table(void) {
+    if (!s_table) {
+        s_table = ml_psram_calloc(1, sizeof(peer_nvs_table_t));
+        if (!s_table) return;
+    }
+
+    size_t len = sizeof(peer_nvs_table_t);
+    if (nvs_get_blob(s_nvs, PEER_NVS_BLOB_KEY, s_table, &len) != ESP_OK ||
+        s_table->magic != PEER_NVS_MAGIC ||
+        s_table->version != PEER_NVS_VERSION) {
+        if (s_table->magic != 0) {
+            ESP_LOGW(TAG, "Peer cache magic/version mismatch (magic=0x%lx v=%u), discarding",
+                     (unsigned long)s_table->magic, (unsigned)s_table->version);
+        }
+        memset(s_table, 0, sizeof(peer_nvs_table_t));
+        s_table->magic = PEER_NVS_MAGIC;
+        s_table->version = PEER_NVS_VERSION;
+    }
+}
+
+static esp_err_t flush_table(void) {
+    if (!s_table) return ESP_ERR_INVALID_STATE;
+
+    s_table->magic = PEER_NVS_MAGIC;
+    s_table->version = PEER_NVS_VERSION;
+
+    /* Header layout (must match peer_nvs_table_t):
+     *   magic(4) + version(2) + count(2) + lru_clock(2) + _pad(2) = 12 bytes
+     * Trailing entries follow contiguously. */
+    size_t header_size = sizeof(uint32_t) + sizeof(uint16_t) * 4;
+    size_t blob_size = header_size + s_table->count * sizeof(peer_nvs_entry_t);
+    esp_err_t err = nvs_set_blob(s_nvs, PEER_NVS_BLOB_KEY, s_table, blob_size);
+    if (err == ESP_OK) {
+        nvs_commit(s_nvs);
+    }
+    return err;
+}
+
+esp_err_t ml_peer_nvs_init(void) {
+    if (s_initialized) return ESP_OK;
+
+    esp_err_t err = nvs_open(PEER_NVS_NAMESPACE, NVS_READWRITE, &s_nvs);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "NVS open failed: %d (peer cache disabled)", err);
+        return err;
+    }
+
+    s_initialized = true;
+    load_table();
+
+    ESP_LOGI(TAG, "Peer NVS initialized: %d cached peers (max %d)",
+             s_table ? s_table->count : 0, ML_NVS_MAX_PEERS);
+
+    return ESP_OK;
+}
+
+void ml_peer_nvs_deinit(void) {
+    if (!s_initialized) return;
+    nvs_close(s_nvs);
+    s_initialized = false;
+    if (s_table) {
+        free(s_table);
+        s_table = NULL;
+    }
+}
+
+esp_err_t ml_peer_nvs_save(const ml_peer_t *peer) {
+    if (!s_initialized || !peer || !s_table) return ESP_ERR_INVALID_STATE;
+
+    /* Advance LRU clock */
+    s_table->lru_clock++;
+
+    /* Build entry */
+    peer_nvs_entry_t entry;
+    memset(&entry, 0, sizeof(entry));
+
+    entry.vpn_ip = peer->vpn_ip;
+    memcpy(entry.public_key, peer->public_key, 32);
+    memcpy(entry.disco_key, peer->disco_key, 32);
+    entry.derp_region = peer->derp_region;
+    entry.lru_counter = s_table->lru_clock;
+
+    /* Store up to 2 endpoints */
+    int stored = 0;
+    for (int i = 0; i < peer->endpoint_count && stored < 2; i++) {
+        if (!peer->endpoints[i].is_ipv6 && peer->endpoints[i].ip != 0) {
+            entry.endpoints[stored].ip = peer->endpoints[i].ip;
+            entry.endpoints[stored].port = peer->endpoints[i].port;
+            stored++;
+        }
+    }
+    entry.endpoint_count = stored;
+
+    /* Save the first DNS label only (e.g. "tailscale-105" from
+     * "tailscale-105.tailnet.ts.net") — the GUI already runs the same
+     * stripping for display, and 32 bytes comfortably fits any label. */
+    {
+        const char *dot = strchr(peer->hostname, '.');
+        size_t n = dot ? (size_t)(dot - peer->hostname) : strlen(peer->hostname);
+        if (n > sizeof(entry.hostname_short) - 1) n = sizeof(entry.hostname_short) - 1;
+        memcpy(entry.hostname_short, peer->hostname, n);
+        entry.hostname_short[n] = '\0';
+    }
+
+    entry.is_exit_node = peer->is_exit_node ? 1 : 0;
+
+    /* Find existing entry by VPN IP (update) or public key (re-keyed) */
+    int slot = -1;
+    for (int i = 0; i < s_table->count; i++) {
+        if (s_table->entries[i].vpn_ip == peer->vpn_ip ||
+            memcmp(s_table->entries[i].public_key, peer->public_key, 32) == 0) {
+            slot = i;
+            break;
+        }
+    }
+
+    if (slot >= 0) {
+        /* Update existing entry */
+        s_table->entries[slot] = entry;
+    } else if (s_table->count < ML_NVS_MAX_PEERS) {
+        /* Append new entry */
+        slot = s_table->count;
+        s_table->entries[slot] = entry;
+        s_table->count++;
+    } else {
+        /* LRU eviction: find entry with lowest lru_counter */
+        int lru_idx = 0;
+        uint16_t min_lru = s_table->entries[0].lru_counter;
+        for (int i = 1; i < s_table->count; i++) {
+            if (s_table->entries[i].lru_counter < min_lru) {
+                min_lru = s_table->entries[i].lru_counter;
+                lru_idx = i;
+            }
+        }
+        ESP_LOGI(TAG, "LRU evict: %s (slot=%d lru=%d)",
+                 s_table->entries[lru_idx].hostname_short, lru_idx, min_lru);
+        s_table->entries[lru_idx] = entry;
+        slot = lru_idx;
+    }
+
+    esp_err_t err = flush_table();
+    if (err == ESP_OK) {
+        ESP_LOGD(TAG, "Saved peer %s (slot=%d/%d)",
+                 entry.hostname_short, slot, s_table->count);
+    }
+
+    return err;
+}
+
+int ml_peer_nvs_load_all(ml_peer_t *peers, int max_peers) {
+    if (!s_initialized || !peers || !s_table) return 0;
+    if (s_table->count == 0) return 0;
+
+    int loaded = 0;
+    for (int i = 0; i < s_table->count && loaded < max_peers; i++) {
+        peer_nvs_entry_t *entry = &s_table->entries[i];
+        if (entry->vpn_ip == 0) continue;
+
+        ml_peer_t *p = &peers[loaded];
+        memset(p, 0, sizeof(ml_peer_t));
+
+        p->vpn_ip = entry->vpn_ip;
+        memcpy(p->public_key, entry->public_key, 32);
+        memcpy(p->disco_key, entry->disco_key, 32);
+        p->derp_region = entry->derp_region;
+        p->active = true;
+        p->online = true;   /* assume reachable until the next MapResponse refines this */
+        p->wg_peer_index = -1;
+
+        /* Restore hostname (truncated, ensure null-terminated) */
+        memcpy(p->hostname, entry->hostname_short, sizeof(entry->hostname_short));
+        p->hostname[sizeof(entry->hostname_short)] = '\0';
+
+        /* Restore endpoints */
+        p->endpoint_count = entry->endpoint_count;
+        for (int j = 0; j < entry->endpoint_count && j < 2; j++) {
+            p->endpoints[j].ip = entry->endpoints[j].ip;
+            p->endpoints[j].port = entry->endpoints[j].port;
+            p->endpoints[j].is_ipv6 = false;
+        }
+
+        p->is_exit_node = (entry->is_exit_node != 0);
+
+        loaded++;
+
+        char ip_str[16];
+        microlink_ip_to_str(p->vpn_ip, ip_str);
+        ESP_LOGI(TAG, "Loaded cached peer: %s (%s)", p->hostname, ip_str);
+    }
+
+    ESP_LOGI(TAG, "Loaded %d cached peers from NVS", loaded);
+    return loaded;
+}
+
+esp_err_t ml_peer_nvs_remove(const uint8_t public_key[32]) {
+    if (!s_initialized || !public_key || !s_table) return ESP_ERR_INVALID_STATE;
+
+    int slot = -1;
+    for (int i = 0; i < s_table->count; i++) {
+        if (memcmp(s_table->entries[i].public_key, public_key, 32) == 0) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0) return ESP_ERR_NOT_FOUND;
+
+    ESP_LOGI(TAG, "Removing cached peer: %s (slot=%d)",
+             s_table->entries[slot].hostname_short, slot);
+
+    /* Compact: shift the tail down one slot */
+    for (int i = slot; i < s_table->count - 1; i++) {
+        s_table->entries[i] = s_table->entries[i + 1];
+    }
+    s_table->count--;
+    memset(&s_table->entries[s_table->count], 0, sizeof(peer_nvs_entry_t));
+
+    return flush_table();
+}
+
+esp_err_t ml_peer_nvs_clear(void) {
+    if (!s_initialized) return ESP_ERR_INVALID_STATE;
+
+    esp_err_t err = nvs_erase_all(s_nvs);
+    if (err == ESP_OK) {
+        nvs_commit(s_nvs);
+        if (s_table) memset(s_table, 0, sizeof(peer_nvs_table_t));
+        ESP_LOGI(TAG, "Peer NVS cleared");
+    }
+    return err;
+}

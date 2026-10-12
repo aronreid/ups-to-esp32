@@ -1,0 +1,1 @@
+   0.000044	Error: you must specify a port name in ups.conf or in '-x port=...' argument.

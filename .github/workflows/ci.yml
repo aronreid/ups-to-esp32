@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Firmware builds for the S3 boards, on ESP-IDF 5.5.5. They run without a board
+# and without a UPS.
+#
+# WHAT IS NOT HERE, and why. The project's design checks (power budget, BOM,
+# placement, ERC, DRC, the pin-map lockstep and the rest) live in tools/test/,
+# which tools/publish.sh keeps out of this repository on purpose, so they
+# cannot run here. Nine of them need KiCad itself, and the official KiCad
+# container images stop at 9.0 while the board files are KiCad 10. They run in
+# the private repository, as `tools/test/run-all.sh` and its CI, and
+# tools/release.sh refuses a release until they pass.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    name: firmware builds (ESP-IDF ${{ matrix.idf }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        idf: ['v5.5.5']
+    container: espressif/idf:${{ matrix.idf }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: let git read the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # rm -f firmware/sdkconfig: ESP-IDF reads SDKCONFIG_DEFAULTS only when
+      # generating it, so a leftover file would build whatever board it names.
+      - name: build for the Rev A board
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          rm -f firmware/sdkconfig
+          idf.py -C firmware -B firmware/build \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-reva build
+      - name: the build must be Rev A
+        shell: bash
+        run: |
+          grep -qa "My UPS Pal Rev A" firmware/build/ups-adaptor-reva.bin || {
+            echo "::error::the Rev A build is not Rev A"; exit 1; }
+          echo "built as Rev A"
+      - name: build for the Rev B board
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -C firmware -B firmware/build-revb \
+                 -DSDKCONFIG="$PWD/firmware/build-revb/sdkconfig" \
+                 -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.revb;sdkconfig.defaults.tailscale" \
+                 -DUPSA_IMAGE_NAME=ups-adaptor-revb build
+          grep -qa "My UPS Pal Rev B" firmware/build-revb/ups-adaptor-revb.bin || {
+            echo "::error::the Rev B build is not Rev B"; exit 1; }
+          grep -qa "Tailscale starting as" firmware/build-revb/ups-adaptor-revb.bin || {
+            echo "::error::the Rev B build has no Tailscale"; exit 1; }
+          echo "built as Rev B, with Tailscale"
