@@ -1,0 +1,91 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/414#issuecomment-291508286",
+"attachment_url": null,
+"vid": "0x09ae",
+"pid": "0x3016",
+"model": "TRIPP LITE UPS (USB product string; model not stated in log)",
+"nut_version": "2.7.4",
+"descriptor_file": "09ae-3016-tripp-lite-ups.hex",
+"decoded": [
+{
+"path": "UPS.PowerConverter.PresentStatus.VoltageOutOfRange",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 0,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.Buck",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.Boost",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.Overload",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 4,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.OverTemperature",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 6,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.InternalFailure",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 7,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerConverter.PresentStatus.AwaitingPower",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 14,
+"size": 1,
+"value": 0,
+"report_bytes": "22 20 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.Input.Voltage",
+"type": "Feature",
+"report_id": "0x31",
+"offset": 0,
+"size": 16,
+"value": 0,
+"report_bytes": "31 be 04",
+"match": "scaled_by_logged_exponent_or_phys"
+}
+]
+}

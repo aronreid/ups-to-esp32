@@ -1,0 +1,11 @@
+config UPSA_OUTAGE_LOG
+    bool "Outage log (every transfer to battery, kept on flash)"
+    depends on UPSA_BOARD_REV_B
+    default y
+    help
+        Records every transfer to battery on the outagelog partition: when it
+        began and ended, the charge and the UPS's runtime estimate along the
+        way, and why it ended. Kept across restarts and updates, shown on the
+        web page. Rev B only: it needs the 16 MB part's spare flash, which the
+        Rev A N4 does not have. Also sets the board's clock over SNTP
+        (pool.ntp.org) for the records' times. See components/outagelog.
