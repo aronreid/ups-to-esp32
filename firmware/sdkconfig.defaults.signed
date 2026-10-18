@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Signed updates, loaded LAST, after a board's own overlays:
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.signed" ...
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.revb;sdkconfig.defaults.tailscale;sdkconfig.defaults.signed" ...
+#
+# Releases and the owner's bench builds use this file. A build from source
+# without it is unchanged: no signature check, updates accepted by image name
+# only. ESP-IDF loads it only when it is named; it is not a target name, so it
+# is never picked up by itself.
+#
+# What it turns on: ESP-IDF's "signed app verification without hardware secure
+# boot". The board checks an update's RSA-3072 signature (the Secure Boot v2
+# format) before it switches to it, against the public key in the signature
+# block of the app it is running. A bad or missing signature makes
+# esp_https_ota_finish() fail with ESP_ERR_OTA_VALIDATE_FAILED, the boot slot is
+# not changed, and the board keeps running what it runs.
+#
+# What it does NOT do: burn any eFuse, or turn on hardware secure boot or flash
+# encryption. The bootloader does not check signatures, so a board stays
+# reflashable over its USB cable with any image.
+#
+# The images this builds are UNSIGNED: the key is not on the build machine
+# (CI has no key at all). Each one MUST be signed before it is flashed or
+# published (tools/sign-release.sh, tools/signed-build.sh). An app built with
+# this file aborts at startup if it carries no signature block, because it
+# could never verify an update: ESP-IDF's esp_secure_boot_init_checks(). Over
+# the air that means rollback to the previous image; flashed by cable it means
+# a boot loop until a signed image is written.
+
+CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y
+CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y
+CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y
+# The key stays off the build machine: sign afterwards with espsecure.
+# CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES is not set
