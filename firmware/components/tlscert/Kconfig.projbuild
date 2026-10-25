@@ -1,0 +1,16 @@
+config UPSA_TLS
+    bool "HTTPS for the page and STARTTLS for NUT"
+    depends on UPSA_BOARD_REV_B && MBEDTLS_TLS_SERVER && ESP_TLS_USING_MBEDTLS
+    # Selected, not left to sdkconfig.defaults.revb alone: a build directory
+    # whose sdkconfig predates this keeps its old "n" for the HTTPS server
+    # over any default, and the page's port 443 would quietly not exist.
+    select ESP_HTTPS_SERVER_ENABLE
+    default y
+    help
+        The page on port 443 as well as 80, and NUT's STARTTLS on 3493, with
+        a certificate the board makes for itself: a CA of its own (kept for
+        twenty years, the one to trust) and a server certificate signed by it,
+        renewed by the board before it expires and whenever its name or
+        address changes. Port 80 can be set to redirect to 443. Rev B only:
+        each TLS session's buffers live in the N16R8's PSRAM. See
+        components/tlscert.

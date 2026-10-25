@@ -1,0 +1,33 @@
+name: My UPS doesn't work, or reads wrong
+description: The board can't read your UPS, or a value looks off
+labels: [ups-compat]
+body:
+  - type: input
+    id: ups
+    attributes:
+      label: UPS make and model
+      placeholder: APC Back-UPS RS 1000G
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board and firmware version
+      description: Rev A or Rev B, and the version shown on the page's Firmware card.
+      placeholder: Rev B, v0.16
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What the page shows, what you expected, and when it started.
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: UPS info
+      description: >
+        On the board's page, press "Send my UPS info to the developer", then say
+        so here. If you'd rather paste it, the USB ID from `lsusb` helps too.
