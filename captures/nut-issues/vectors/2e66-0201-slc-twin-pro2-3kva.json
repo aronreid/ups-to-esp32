@@ -1,0 +1,181 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/1312#issuecomment-1055098137",
+"attachment_url": null,
+"vid": "0x2e66",
+"pid": "0x0201",
+"model": "SLC TWIN PRO2<=3KVA",
+"nut_version": "2.7.4-4755-ga1454772",
+"descriptor_file": "2e66-0201-slc-twin-pro2-3kva.hex",
+"decoded": [
+{
+"path": "UPS.BatterySystem.Battery.BatteryID",
+"type": "Feature",
+"report_id": "0x20",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "20 01 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.ffff0090",
+"type": "Feature",
+"report_id": "0x21",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "21 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.PresentStatus.Present",
+"type": "Feature",
+"report_id": "0x27",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.PresentStatus.Present",
+"type": "Input",
+"report_id": "0x27",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.PresentStatus.ffff0074",
+"type": "Feature",
+"report_id": "0x27",
+"offset": 8,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.PresentStatus.ffff0074",
+"type": "Input",
+"report_id": "0x27",
+"offset": 8,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.Test",
+"type": "Feature",
+"report_id": "0x24",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "24 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Battery.ffff00e3",
+"type": "Feature",
+"report_id": "0xe3",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "e3 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.BatterySystemID",
+"type": "Feature",
+"report_id": "0x20",
+"offset": 8,
+"size": 8,
+"value": 1,
+"report_bytes": "20 01 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.ChargerID",
+"type": "Feature",
+"report_id": "0x20",
+"offset": 16,
+"size": 8,
+"value": 1,
+"report_bytes": "20 01 01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.ffff0079",
+"type": "Feature",
+"report_id": "0x27",
+"offset": 16,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.ffff0079",
+"type": "Input",
+"report_id": "0x27",
+"offset": 16,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.InternalFailure",
+"type": "Feature",
+"report_id": "0x27",
+"offset": 24,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.InternalFailure",
+"type": "Input",
+"report_id": "0x27",
+"offset": 24,
+"size": 8,
+"value": 0,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.Used",
+"type": "Feature",
+"report_id": "0x27",
+"offset": 32,
+"size": 8,
+"value": 1,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.BatterySystem.Charger.PresentStatus.Used",
+"type": "Input",
+"report_id": "0x27",
+"offset": 32,
+"size": 8,
+"value": 1,
+"report_bytes": "27 01 00 00 00 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.Flow.[1].ConfigFrequency",
+"type": "Feature",
+"report_id": "0x14",
+"offset": 0,
+"size": 8,
+"value": 50,
+"report_bytes": "14 32",
+"match": "raw_equal"
+}
+]
+}
