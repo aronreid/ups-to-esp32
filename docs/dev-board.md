@@ -62,7 +62,11 @@ Flash over the board's serial port (the "UART" or "COM" one), not the port the U
 uses:
 
 ```sh
+# dev-s3
 idf.py -B build-dev-s3 -p /dev/cu.usbserial-XXXX flash monitor
+
+# dev-s3-psram
+idf.py -B build-dev-s3-psram -p /dev/cu.usbserial-XXXX flash monitor
 ```
 
 On first boot the board starts its setup network. Join it and open
