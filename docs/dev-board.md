@@ -11,8 +11,15 @@ build again.
   pins. Most S3 boards with two USB ports have one marked "USB" or "OTG" (native)
   and one marked "UART" or "COM" (the serial chip). The UPS goes on the native one.
   A classic ESP32, a C3 or a C6 has no USB host and cannot do this.
-- **A USB-A socket on those pins**, through an OTG adapter or a cable wired to the
-  port.
+- **OTG enabled** Not all dev boards enable OTG on the native USB port by default and
+  require a jumper or solder bridge to enable.
+  - For example, the [AITRIP 3PCS ESP32-S3-DevKitC-1-N16R8](https://www.amazon.com/dp/B0CGYXJB6Y)
+    requires a solder bridge on the underside of the board.
+- **A USB connector on those pins** to connect to the UPS. There are several ways to do this:
+  - A USB-A port via OTG adapter or a cable wired to the ESP32's native USB port, then use a
+    standard USB-A to USB-B cable to the UPS
+  - Using a dev board with a USB-C port, with a [USB-C to USB-B cable](https://www.amazon.com/dp/B0F2YGZ68S)
+    to connect to the UPS.
 - **5 V going out to the UPS on that socket.** The UPS's USB port takes no power of
   its own and never connects without it. Many dev boards do not put 5 V on their
   native port by default. Check your board's schematic: some have a solder jumper
