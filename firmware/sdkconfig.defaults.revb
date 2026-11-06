@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Rev B, loaded AFTER sdkconfig.defaults, whose values it overrides:
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.revb" ...
+# board.h refuses a Rev B build that did not load this file.
+
+CONFIG_UPSA_BOARD_REV_B=y
+
+# ESP32-S3-WROOM-1-N16R8: 16MB quad flash, 8MB octal PSRAM.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions-revb.csv"
+
+# Octal PSRAM takes GPIO35-37; Rev B's pin map uses none of them. Rated to
+# 65 C against the N4's 85 C (docs/rev-b.md).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+# Mapped into the heap, but small allocations stay internal: DMA buffers and
+# the Wi-Fi driver's hot paths want internal RAM.
+#
+# 4 KB, not the 16 KB this started at, and TLS in PSRAM: measured on the
+# first board, 2026-10-09, the three-UPS hub build with Tailscale left 5-20 KB
+# of internal RAM free and once 100 bytes; without Tailscale, 95 KB. The
+# board has 8 MB of PSRAM doing nothing. mbedTLS's buffers (an update check,
+# the fleet check-in, Tailscale's control plane, and HTTPS on the page) are
+# tens of KB each and do not need internal RAM.
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=4096
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+
+# The OLED. Rev B's J3 reads GND, 3V3, SCL, SDA, the order the common modules
+# use, so a display is safe here (on plain Rev A it is not). display.c copes
+# with no module fitted, so a board without one loses nothing.
+CONFIG_UPSA_HAVE_OLED=y
+
+# A UPS behind a USB hub. ONE UPS: the board still reads a single one (the
+# first that is a HID Power Device), so this is not the hub branch's
+# multi-UPS bench build. Without it a hub enumerates as a device with no HID
+# interface and the UPS behind it is never seen.
+CONFIG_USB_HOST_HUBS_SUPPORTED=y
+CONFIG_USB_HOST_HUB_MULTI_LEVEL=n
+
+# Wi-Fi and lwIP buffers in PSRAM too. Their receive buffers alone are up to
+# 32 x 1.6 KB, and with TLS moved out they were what still took internal RAM
+# down to 2 KB when Tailscale and the UPS traffic burst together (first
+# board, 2026-10-09). PSRAM is slower, which a few hundred bytes of NUT every
+# few seconds never notices.
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+
+# HTTPS for the page on 443 and STARTTLS for NUT (CONFIG_UPSA_TLS,
+# components/tlscert). The HTTPS server component is off unless asked for.
+CONFIG_ESP_HTTPS_SERVER_ENABLE=y
+# A second web server (3 sessions, its listener and its control socket) on
+# top of the 16 the plain build shares between the page, NUT and updates.
+# The Tailscale build already raises it to 24.
+CONFIG_LWIP_MAX_SOCKETS=24
+
+# --- Internal-RAM savings ---------------------------------------------------
+# Let IDF place the .bss of lwIP, net80211 and the Wi-Fi PHY/pp libraries in
+# PSRAM. Static variables only; the hot paths stay as they were.
+CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+# Wi-Fi buffer caps. With SPIRAM_TRY_ALLOCATE_WIFI_LWIP the IDF defaults rise
+# to 16 RX buffers and a 16-frame block-ack window; a single UPS and a few
+# NUT clients need nowhere near that. RX_BA_WIN must stay <= STATIC_RX.
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
+CONFIG_ESP_WIFI_RX_BA_WIN=6
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=8
+
+# mDNS task stack and its allocations in PSRAM (task creation on external
+# memory is what FREERTOS_TASK_CREATE_ALLOW_EXT_MEM provides).
+CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM=y
+CONFIG_MDNS_TASK_CREATE_FROM_SPIRAM=y
+CONFIG_MDNS_MEMORY_ALLOC_SPIRAM=y
+
+# Rev B's PSRAM is cached, so keep the bigger data cache.
+CONFIG_ESP32S3_DATA_CACHE_32KB=y
