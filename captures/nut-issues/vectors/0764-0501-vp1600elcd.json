@@ -1,0 +1,601 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/3557",
+"attachment_url": "https://github.com/user-attachments/files/30693855/nut-start-wrong-values.log",
+"vid": "0x0764",
+"pid": "0x0501",
+"model": "VP1600ELCD",
+"nut_version": null,
+"descriptor_file": "0764-0501-vp1600elcd.hex",
+"decoded": [
+{
+"path": "00000004.00000024.000000fd",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 0,
+"size": 8,
+"value": 3,
+"report_bytes": "03 03 07",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.iOEMInformation",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 8,
+"size": 8,
+"value": 7,
+"report_bytes": "03 03 07",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.0085009e",
+"type": "Feature",
+"report_id": "0x29",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "29 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.0085009e",
+"type": "Input",
+"report_id": "0x29",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "29 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.Rechargeable",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "06 01 02",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.CapacityMode",
+"type": "Feature",
+"report_id": "0x06",
+"offset": 8,
+"size": 8,
+"value": 2,
+"report_bytes": "06 01 02",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.DesignCapacity",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.CapacityGranularity1",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 8,
+"size": 8,
+"value": 5,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.CapacityGranularity2",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 16,
+"size": 8,
+"value": 10,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.WarningCapacityLimit",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 24,
+"size": 8,
+"value": 20,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 32,
+"size": 8,
+"value": 10,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.FullChargeCapacity",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 40,
+"size": 8,
+"value": 100,
+"report_bytes": "07 64 05 0a 14 0a 64",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RemainingCapacity",
+"type": "Feature",
+"report_id": "0x20",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "20 64 0a 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RemainingCapacity",
+"type": "Input",
+"report_id": "0x20",
+"offset": 0,
+"size": 8,
+"value": 100,
+"report_bytes": "20 64 0a 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RunTimeToEmpty",
+"type": "Feature",
+"report_id": "0x21",
+"offset": 0,
+"size": 16,
+"value": 28110,
+"report_bytes": "21 ce 6d",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RunTimeToEmpty",
+"type": "Input",
+"report_id": "0x21",
+"offset": 0,
+"size": 16,
+"value": 28110,
+"report_bytes": "21 ce 6d",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RemainingTimeLimit",
+"type": "Input",
+"report_id": "0x82",
+"offset": 0,
+"size": 16,
+"value": 300,
+"report_bytes": "82 2c 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.RemainingTimeLimit",
+"type": "Feature",
+"report_id": "0x82",
+"offset": 0,
+"size": 16,
+"value": 300,
+"report_bytes": "82 2c 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x3f",
+"offset": 0,
+"size": 16,
+"value": 24,
+"report_bytes": "3f f0 00",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "00000004.00000024.PresentStatus.ACPresent",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.Charging",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.Discharging",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.FullyCharged",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 3,
+"size": 1,
+"value": 1,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.RemainingTimeLimitExpired",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 4,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.BelowRemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x22",
+"offset": 5,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.ACPresent",
+"type": "Input",
+"report_id": "0x22",
+"offset": 0,
+"size": 1,
+"value": 1,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.Charging",
+"type": "Input",
+"report_id": "0x22",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.Discharging",
+"type": "Input",
+"report_id": "0x22",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.FullyCharged",
+"type": "Input",
+"report_id": "0x22",
+"offset": 3,
+"size": 1,
+"value": 1,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.RemainingTimeLimitExpired",
+"type": "Input",
+"report_id": "0x22",
+"offset": 4,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.PresentStatus.BelowRemainingCapacityLimit",
+"type": "Input",
+"report_id": "0x22",
+"offset": 5,
+"size": 1,
+"value": 0,
+"report_bytes": "22 09",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.AudibleAlarmControl",
+"type": "Feature",
+"report_id": "0x80",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "80 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.00000024.AudibleAlarmControl",
+"type": "Input",
+"report_id": "0x80",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "80 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.Voltage",
+"type": "Feature",
+"report_id": "0x23",
+"offset": 0,
+"size": 16,
+"value": 234,
+"report_bytes": "23 ea 00 ea 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.Voltage",
+"type": "Input",
+"report_id": "0x23",
+"offset": 0,
+"size": 16,
+"value": 234,
+"report_bytes": "23 ea 00 ea 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.LowVoltageTransfer",
+"type": "Feature",
+"report_id": "0x83",
+"offset": 0,
+"size": 16,
+"value": 167,
+"report_bytes": "83 a7 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.HighVoltageTransfer",
+"type": "Feature",
+"report_id": "0x84",
+"offset": 0,
+"size": 16,
+"value": 295,
+"report_bytes": "84 27 01",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.ConfigVoltage",
+"type": "Feature",
+"report_id": "0x88",
+"offset": 0,
+"size": 16,
+"value": 230,
+"report_bytes": "88 e6 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Input.ConfigVoltage",
+"type": "Input",
+"report_id": "0x88",
+"offset": 0,
+"size": 16,
+"value": 230,
+"report_bytes": "88 e6 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Voltage",
+"type": "Feature",
+"report_id": "0x23",
+"offset": 16,
+"size": 16,
+"value": 234,
+"report_bytes": "23 ea 00 ea 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Voltage",
+"type": "Input",
+"report_id": "0x23",
+"offset": 16,
+"size": 16,
+"value": 234,
+"report_bytes": "23 ea 00 ea 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.PercentLoad",
+"type": "Feature",
+"report_id": "0x25",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "25 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.PercentLoad",
+"type": "Input",
+"report_id": "0x25",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "25 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Overload",
+"type": "Feature",
+"report_id": "0x28",
+"offset": 0,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Boost",
+"type": "Feature",
+"report_id": "0x28",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Buck",
+"type": "Feature",
+"report_id": "0x28",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Overload",
+"type": "Input",
+"report_id": "0x28",
+"offset": 0,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Boost",
+"type": "Input",
+"report_id": "0x28",
+"offset": 1,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Buck",
+"type": "Input",
+"report_id": "0x28",
+"offset": 2,
+"size": 1,
+"value": 0,
+"report_bytes": "28 00",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.ConfigActivePower",
+"type": "Feature",
+"report_id": "0x3e",
+"offset": 0,
+"size": 16,
+"value": 960,
+"report_bytes": "3e c0 03",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Test",
+"type": "Feature",
+"report_id": "0x85",
+"offset": 0,
+"size": 8,
+"value": 6,
+"report_bytes": "85 06",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.Test",
+"type": "Input",
+"report_id": "0x85",
+"offset": 0,
+"size": 8,
+"value": 6,
+"report_bytes": "85 06",
+"match": "raw_equal"
+},
+{
+"path": "00000004.Output.DelayBeforeShutdown",
+"type": "Feature",
+"report_id": "0x86",
+"offset": 0,
+"size": 16,
+"value": -60,
+"report_bytes": "86 ff ff",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "00000004.Output.DelayBeforeShutdown",
+"type": "Input",
+"report_id": "0x86",
+"offset": 0,
+"size": 16,
+"value": -60,
+"report_bytes": "86 ff ff",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "00000004.Output.DelayBeforeStartup",
+"type": "Feature",
+"report_id": "0x87",
+"offset": 0,
+"size": 16,
+"value": -60,
+"report_bytes": "87 ff ff",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "00000004.Output.DelayBeforeStartup",
+"type": "Input",
+"report_id": "0x87",
+"offset": 0,
+"size": 16,
+"value": -60,
+"report_bytes": "87 ff ff",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "00000004.ff0100e1.ff0100e0",
+"type": "Feature",
+"report_id": "0x89",
+"offset": 0,
+"size": 8,
+"value": 40,
+"report_bytes": "89 28 2e 39 31 3e 38 2f",
+"match": "raw_equal"
+},
+{
+"path": "00000004.ff0100e1.ff0100e3",
+"type": "Feature",
+"report_id": "0x1b",
+"offset": 0,
+"size": 8,
+"value": 2,
+"report_bytes": "1b 02",
+"match": "raw_equal"
+},
+{
+"path": "00000004.ff0100e1.ff0100e2",
+"type": "Feature",
+"report_id": "0x1c",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "1c 00",
+"match": "raw_equal"
+}
+]
+}
