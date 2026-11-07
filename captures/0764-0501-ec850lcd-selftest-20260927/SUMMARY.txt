@@ -1,0 +1,50 @@
+CyberPower EC850LCD (0764:0501) -- what its self-test commands actually do
+2026-09-27, firmware v0.10-rc7, a Rev A board, load 26%, charge 100%
+
+The descriptor has one test control: report 20, Output collection, usage
+Power Device 0x58 "Test", 8 bits, logical 0..6. No vendor page, no separate
+runtime-calibration usage. Values written are the HID Power Device ones, the
+same NUT's cps-hid subdriver writes to UPS.Output.Test: 1 quick, 2 deep, 3 stop.
+
+Status polled once a second over /api/status. During a test the UPS keeps
+ACPresent set (OL) and raises Discharging, so ups.status reads "OL DISCHRG"
+(status word 17), never OB, and test_result reads 5 (in progress).
+
+test.battery.start.quick   (Test = 1)
+  0.0  status 1   result 1
+  2.1  status 17  result 5
+  6.2  status 1   result 1 "Done and passed"
+  -> ~4 s of discharge
+
+test.battery.start.deep    (Test = 2)
+  0.0  status 1   result 1  charge 100  runtime 1000
+  1.1  status 17  result 5  charge 99   runtime 975
+  3.1  status 17  result 5  charge 99   runtime 924
+  6.2  status 1   result 1  charge 99   runtime 924   "Done and passed"
+  -> discharging 1.1 s to 5.2 s, ~4 s, same as quick
+
+Conclusion: the EC850LCD accepts "deep" and runs its ordinary 10-second-class
+self-test. It has no runtime calibration reachable over USB. An earlier deep
+test by the owner the same day behaved the same way ("goes back on mains").
+
+Re-checked 17:20-17:25 (deep-test-usb-cycled.log), because the APC's reports
+were found to freeze during its deep test the same day. Deep sent; the UPS
+reported in progress for ~4.5 s, then passed, charge 100 -> 99 -> 100 within
+50 s. The UPS's USB was then power-cycled at 1 min and 3 min to force fresh
+reads: both times it came back OL, not discharging, at 100%. The owner also
+watched it return to mains within seconds. A hidden run-down would have shown
+here, as the APC's did (83% and discharging after 15 min).
+
+CyberPower's documents agree: the EC850LCD manual, PowerPanel Personal
+(Windows v2.4.6, Mac v2.3.4) and pwrstat offer one self-test; "Runtime
+Calibration" appears only in PowerPanel Business Edition.
+
+Second unit (at another site, Rev A board, v0.10-rc8,
+load 0%), deep test started from the web page at about 17:35 local, read
+from the owner's copies of the page:
+  first copy   OL DISCHRG, "Battery test running", charge 99%, runtime 138 min
+  ~2 min later OL, "Battery is charged and ready", 100%, last result "passed"
+Same short self-test. It ran long enough to be caught on the page, which
+the first unit's 4 s never was, but was over within about 2 minutes with the
+charge back at 100%. Not re-checked across a USB power cycle; its descriptor
+is byte-identical to the first unit's (hash 67d87aad3ef7c1b5).

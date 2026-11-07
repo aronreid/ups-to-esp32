@@ -1,0 +1,10 @@
+Network UPS Tools 2.8.4 release - Generic HID driver 0.67
+USB communication driver (libusb 1.0) 0.50
+   0.000000	[D1] upsdrv_makevartable...
+   0.000022	[D1] Using USB implementation: libusb-1.0.30 (API: 0x0100010B)
+   0.000028	[D3] main_arg: var='vendorid' val='051d'
+   0.000034	[D3] main_arg: var='productid' val='0002'
+   0.000039	[D1] Network UPS Tools version 2.8.4 release, 64-bit build for aarch64, built with Apple clang version 17.0.0 (clang-1700.0.13.3); Target: arm64-apple-darwin24.4.0; Thread model: posix and configured with flags: --disable-dependency-tracking --prefix=/opt/homebrew/Cellar/nut/2.8.4 --localstatedir=/opt/homebrew/var --sysconfdir=/opt/homebrew/etc/nut --with-statepath=/opt/homebrew/var/state/ups --with-pidpath=/opt/homebrew/var/run --with-systemdtmpfilesdir=/opt/homebrew/Cellar/nut/2.8.4/share/nut --with-openssl --with-serial --with-usb --without-avahi --without-cgi --without-dev --without-doc --without-ipmi --without-libltdl --without-neon --without-nss --without-nut_monitor --without-powerman --without-pynut --without-snmp --without-wrap --with-macosx_ups
+   0.000044	Error: you must specify a port name in ups.conf or in '-x port=...' argument.
+Try -h for help.
+   0.000051	[D1] upsnotify: failed to notify about state NOTIFY_STATE_STOPPING: no notification tech defined, will not spam more about it

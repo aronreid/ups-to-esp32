@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/aronreid/ups-to-esp32/blob/main/SECURITY.md
+    about: Please email instead of opening a public issue.
