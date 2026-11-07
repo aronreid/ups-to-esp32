@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# A generic ESP32-S3 dev board on an N16R8 module (16 MB flash, 8 MB octal
+# PSRAM), loaded AFTER sdkconfig.defaults AND sdkconfig.defaults.revb:
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.revb;sdkconfig.defaults.dev-s3-psram;sdkconfig.defaults.tailscale" ...
+#
+# Layered on Rev B on purpose. It is Rev B's module, so it takes Rev B's flash
+# size, partition table, PSRAM, Wi-Fi, TLS and task settings by inheritance: a
+# change to Rev B's memory tuning reaches it without a second copy to keep in
+# step. Only what is not true of a dev board is overridden here. board.h
+# refuses this target without 16 MB flash and octal PSRAM set.
+#
+# N16R8 only. An N8R8 has half the flash Rev B's partition table describes, and
+# the outage log reserves a fixed 8 MB inside it; use sdkconfig.defaults.dev-s3
+# there. Build from source only; see docs/dev-board.md.
+
+CONFIG_UPSA_BOARD_DEV_S3_PSRAM=y
+
+# No display header on a dev board. Kconfig drops Rev B's UPSA_HAVE_OLED anyway
+# (UPSA_BOARD_OLED_OK is false here); said here so nobody has to work it out.
+CONFIG_UPSA_HAVE_OLED=n

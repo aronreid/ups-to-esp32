@@ -1,0 +1,81 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/3061",
+"attachment_url": "https://github.com/user-attachments/files/21867620/driver.log.gz",
+"vid": "0x09d6",
+"pid": "0x0001",
+"model": "UPS HI",
+"nut_version": null,
+"descriptor_file": "09d6-0001-ups-hi.hex",
+"decoded": [
+{
+"path": "UPS.Test",
+"type": "Feature",
+"report_id": "0x02",
+"offset": 0,
+"size": 8,
+"value": 60,
+"report_bytes": "02 06",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.SwitchOffControl",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 0,
+"size": 8,
+"value": 0,
+"report_bytes": "03 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.AudibleAlarmControl",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 0,
+"size": 8,
+"value": 20,
+"report_bytes": "04 02",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.0084006a",
+"type": "Feature",
+"report_id": "0x64",
+"offset": 0,
+"size": 8,
+"value": 10,
+"report_bytes": "64 01 00 02 00",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.Voltage",
+"type": "Feature",
+"report_id": "0x65",
+"offset": 0,
+"size": 16,
+"value": 22,
+"report_bytes": "65 98 08 b0 04 03 00 f4 01",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.Current",
+"type": "Feature",
+"report_id": "0x65",
+"offset": 32,
+"size": 16,
+"value": 0,
+"report_bytes": "65 98 08 b0 04 03 00 f4 01",
+"match": "scaled_by_logged_exponent_or_phys"
+},
+{
+"path": "UPS.Frequency",
+"type": "Feature",
+"report_id": "0x65",
+"offset": 48,
+"size": 16,
+"value": 5000,
+"report_bytes": "65 98 08 b0 04 03 00 f4 01",
+"match": "scaled_by_logged_exponent_or_phys"
+}
+]
+}

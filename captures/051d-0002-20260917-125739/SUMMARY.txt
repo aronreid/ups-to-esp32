@@ -1,0 +1,14 @@
+UPS capture 20260917-125739
+VID 0x051d  PID 0x0002
+
+Host: macOS 27.0
+NUT:  Network UPS Tools 2.8.4 release - Generic HID driver 0.67
+
+Files:
+ioreg-hid.txt
+ioreg-usb.txt
+report-descriptor-raw.txt
+SUMMARY.txt
+system_profiler-usb.txt
+usages.txt
+usbhid-ups-debug.txt
