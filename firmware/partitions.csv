@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# 4MB flash (ESP32-S3-WROOM-1-N4).
+#
+# Two 1.94MB app slots: an OTA update is written to whichever slot is not
+# running, then booted from, so a bad image rolls back instead of bricking a
+# device in a closet. The application binary is about 770KB, so that is roughly
+# 2.5x headroom.
+#
+# The two slots consume the part exactly -- 0x20000 through 0x400000 divides
+# into two 0x1F0000 halves with nothing left over. That is the cost of the N4:
+# there is no spare region, so the event log of transfers to battery that the
+# 8MB part had room for is not available here.
+#
+# Name,     Type, SubType, Offset,   Size,  Flags
+nvs,        data, nvs,     0x9000,   0x6000,
+otadata,    data, ota,     0xf000,   0x2000,
+phy_init,   data, phy,     0x11000,  0x1000,
+ota_0,      app,  ota_0,   0x20000,  0x1F0000,
+ota_1,      app,  ota_1,   0x210000, 0x1F0000,

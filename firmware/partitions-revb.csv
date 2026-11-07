@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# 16MB flash (ESP32-S3-WROOM-1-N16R8), Rev B.
+#
+# A partition table cannot change over the air, so it is sized now for the
+# features Rev B exists for (docs/rev-b.md), not for today's 1.05MB image.
+# Two 3MB app slots: TLS, Tailscale and a longer history all grow the binary,
+# and 3MB leaves 65% of a slot free, where Rev A's 1.94MB leaves about 45%.
+#
+# outagelog is the event log of transfers to battery that the N4 had no room
+# for: 0x620000 to the end of the part, 9.9MB. A custom data subtype, so no
+# IDF component claims it.
+#
+# Name,     Type, SubType, Offset,   Size,  Flags
+nvs,        data, nvs,     0x9000,   0x6000,
+otadata,    data, ota,     0xf000,   0x2000,
+phy_init,   data, phy,     0x11000,  0x1000,
+ota_0,      app,  ota_0,   0x20000,  0x300000,
+ota_1,      app,  ota_1,   0x320000, 0x300000,
+outagelog,  data, 0x40,    0x620000, 0x9E0000,
