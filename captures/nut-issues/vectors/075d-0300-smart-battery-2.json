@@ -1,0 +1,71 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/3015",
+"attachment_url": "https://github.com/user-attachments/files/22890401/usbhid-git-debug-full.log",
+"vid": "0x075d",
+"pid": "0x0300",
+"model": "Smart-Battery",
+"nut_version": null,
+"descriptor_file": "075d-0300-smart-battery.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.DelayBeforeShutdown",
+"type": "Feature",
+"report_id": "0x09",
+"offset": 0,
+"size": 32,
+"value": 1,
+"report_bytes": "09 01 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.DelayBeforeStartup",
+"type": "Feature",
+"report_id": "0x0a",
+"offset": 0,
+"size": 32,
+"value": 257,
+"report_bytes": "0a 01 01 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Input",
+"report_id": "0x02",
+"offset": 8,
+"size": 8,
+"value": 100,
+"report_bytes": "02 c0 64 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RunTimeToEmpty",
+"type": "Input",
+"report_id": "0x02",
+"offset": 16,
+"size": 32,
+"value": 0,
+"report_bytes": "02 c0 64 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RemainingCapacity",
+"type": "Input",
+"report_id": "0x02",
+"offset": 8,
+"size": 8,
+"value": 100,
+"report_bytes": "02 c1 64 00 00 00 00",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.RunTimeToEmpty",
+"type": "Input",
+"report_id": "0x02",
+"offset": 16,
+"size": 32,
+"value": 0,
+"report_bytes": "02 c1 64 00 00 00 00",
+"match": "raw_equal"
+}
+]
+}
