@@ -1,0 +1,52 @@
+CyberPower EC850LCD read by the ESP32-S3
+
+Date   : 2026-09-21
+Target : Freenove ESP32-S3-WROOM devkit, USB host on GPIO19/20,
+         firmware v0.04 (ups-adaptor-freenove)
+Device : 0764:0501  CPS  EC850LCD
+Result : report descriptor 496 bytes, 36 power/battery fields
+Parser : generic path, no vendor quirk applied
+
+WHY THIS ONE MATTERS. It is the project's primary target UPS and it is a
+different vendor from the only other unit captured (an APC Back-UPS RS 1000G,
+051d:0002, 1133 descriptor bytes, 86 fields). The same parser reads both with
+no model-specific code, which is the claim the generic HID path exists to make.
+Two vendors is not "most UPSes", but it is two.
+
+WHAT IT REPORTS
+  battery.charge      100 %
+  battery.runtime     2050 s
+  battery.charge.low  10 %
+  input.voltage       120.0 V      <- correct scaling, see below
+  output.voltage      120.0 V
+  ups.load            19 %
+  ups.realpower.nominal 510 W
+  ups.status          OL
+  ups.beeper.status   enabled
+  ups.test.result     "Done and passed"
+
+WHAT IT DOES NOT REPORT, AND WHY
+  battery.voltage     Voltage (0x84,0x30) is in the descriptor but not inside
+                      the Battery collection, so there is no battery voltage
+                      to read. The APC has one.
+  input.frequency     Frequency (0x84,0x32) is absent entirely.
+  realpower           Only the 510 W NOMINAL is present; no instantaneous
+                      power usage exists in the descriptor.
+  battery.date        ManufacturerDate (0x85,0x85) is ABSENT. caps reads 15 =
+                      TEST|BEEPER|LOWBATT|SHUTDOWN with BATTDATE clear, so the
+                      firmware correctly does not offer it. A user who wants to
+                      record a battery replacement date on this model cannot:
+                      the UPS has nowhere to keep it.
+
+THE CYBERPOWER SCALING QUIRK DID NOT APPEAR. Several CPS models report
+output.voltage with a bad exponent in the report descriptor, which NUT patches
+at runtime; the symptom is 1230 or 12.3 where 123 is meant. This unit reported
+120.0 V for both input and output against a 120 V supply, so no correction was
+needed and none was applied.
+
+FILES
+  report-descriptor.bin   as the device returned it, via /api/descriptor
+  report-descriptor.hex   the same bytes, readable
+  decoded.txt             tools/decode-hid.py output, 36 fields
+  values.txt              /api/status ups object at capture time
+  nut-session.txt         LIST VAR / LIST CMD / LIST RW over TCP 3493

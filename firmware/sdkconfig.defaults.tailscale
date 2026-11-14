@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Rev B with Tailscale, loaded AFTER sdkconfig.defaults.revb:
+#   idf.py -B build-revb-ts -D SDKCONFIG=build-revb-ts/sdkconfig \
+#     -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.revb;sdkconfig.defaults.tailscale" \
+#     -D UPSA_IMAGE_NAME=ups-adaptor-revb build
+# Same image name as plain Rev B on purpose: the same board, and OTA refuses an
+# image whose name differs from the running one.
+#
+# Only what MicroLink needs, each checked against its source rather than
+# copied from its example sdkconfig, which also retunes the tick rate, Wi-Fi
+# and the watchdog for video streaming. See components/tailnet/README.md for
+# what was left out and why.
+
+CONFIG_UPSA_TAILSCALE=y
+
+# The Noise (ts2021) channel to the control plane is mbedTLS ChaCha20-Poly1305
+# (ml_noise.c); IDF leaves all three off. Not HKDF: MicroLink's HKDF is its
+# own, over BLAKE2s, and DISCO's NaCl box is its own XSalsa20.
+CONFIG_MBEDTLS_CHACHA20_C=y
+CONFIG_MBEDTLS_POLY1305_C=y
+CONFIG_MBEDTLS_CHACHAPOLY_C=y
+
+# Every decrypted WireGuard packet is handed to lwIP through tcpip_input(),
+# one mailbox message each; a burst of tunnel traffic on top of Wi-Fi's own
+# would overflow the default 32 and drop packets silently.
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
+
+# sdkconfig.defaults sizes 16 for the web UI, NUT and OTA, which use about
+# 15. MicroLink adds up to six more: the control connection, DERP, and the
+# magicsock and STUN UDP sockets on IPv4 and IPv6.
+CONFIG_LWIP_MAX_SOCKETS=24
+
+# MicroLink's peer cache is one NVS blob of 118 bytes a peer plus a 12-byte
+# header (peer_nvs_entry_t, v3). Its default 64 peers is 7.4 KB; 16 is
+# 1.9 KB. Rewriting it needs room for a second copy, in an NVS
+# partition of 24 KB that also holds Wi-Fi and settings and cannot grow over
+# the air. A board that serves a UPS talks to a handful of peers.
+CONFIG_ML_NVS_MAX_PEERS=16
+
+# The WireGuard device is owned by the TCPIP thread (components/tailnet/
+# README.md, local patch "TCPIP-thread ownership"): handshake processing
+# (X25519 plus BLAKE2s, a few hundred bytes of frames deep) and the vendored
+# code's WARN logs now run on it, not on ml_wg_mgr's 6 KB stack. IDF's
+# default is 3072; one more KB of internal RAM buys the margin.
+CONFIG_LWIP_TCPIP_TASK_STACK_SIZE=4096
