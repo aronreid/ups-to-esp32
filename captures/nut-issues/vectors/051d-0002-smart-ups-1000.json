@@ -1,0 +1,81 @@
+{
+"source_url": "https://github.com/networkupstools/nut/issues/2441",
+"attachment_url": null,
+"vid": "0x051d",
+"pid": "0x0002",
+"model": "Smart-UPS 1000",
+"nut_version": null,
+"descriptor_file": "051d-0002-smart-ups-1000.hex",
+"decoded": [
+{
+"path": "UPS.PowerSummary.iProduct",
+"type": "Feature",
+"report_id": "0x01",
+"offset": 0,
+"size": 8,
+"value": 1,
+"report_bytes": "01 01",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iManufacturer",
+"type": "Feature",
+"report_id": "0x03",
+"offset": 0,
+"size": 8,
+"value": 3,
+"report_bytes": "03 03",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.iOEMInformation",
+"type": "Feature",
+"report_id": "0x04",
+"offset": 0,
+"size": 8,
+"value": 3,
+"report_bytes": "04 03",
+"match": "raw_equal"
+},
+{
+"path": "UPS.Battery.Test",
+"type": "Feature",
+"report_id": "0x16",
+"offset": 0,
+"size": 8,
+"value": 6,
+"report_bytes": "16 06",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.AudibleAlarmControl",
+"type": "Feature",
+"report_id": "0x14",
+"offset": 0,
+"size": 8,
+"value": 2,
+"report_bytes": "14 02",
+"match": "raw_equal"
+},
+{
+"path": "UPS.ManufacturerDate",
+"type": "Feature",
+"report_id": "0x35",
+"offset": 0,
+"size": 16,
+"value": 12686,
+"report_bytes": "35 8e 31",
+"match": "raw_equal"
+},
+{
+"path": "UPS.PowerSummary.PresentStatus.BelowRemainingCapacityLimit",
+"type": "Feature",
+"report_id": "0x07",
+"offset": 4,
+"size": 1,
+"value": 0,
+"report_bytes": "07 0c 00",
+"match": "raw_equal"
+}
+]
+}
