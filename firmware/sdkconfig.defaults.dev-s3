@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# A generic ESP32-S3 dev board without PSRAM, loaded AFTER sdkconfig.defaults:
+#   idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.dev-s3" ...
+#
+# Build from source only. No release carries this image, and its own image
+# name (board.h) means it never takes a Rev A or Rev B one. Everything else is
+# Rev A's: the 4 MB partition table, which also runs on 8 and 16 MB parts.
+# See docs/dev-board.md.
+
+CONFIG_UPSA_BOARD_DEV_S3=y
