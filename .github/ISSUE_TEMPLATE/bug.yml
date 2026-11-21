@@ -1,0 +1,21 @@
+name: Something else is broken
+description: A bug in the firmware or the page
+labels: [bug]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board and firmware version
+      placeholder: Rev A, v0.16
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
