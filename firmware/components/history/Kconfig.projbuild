@@ -1,0 +1,9 @@
+config UPSA_HISTORY
+    bool "Long history (a reading every 10 s, about 28 days, kept on flash)"
+    depends on UPSA_OUTAGE_LOG
+    default y
+    help
+        Keeps a reading of the UPS every ten seconds in the outagelog
+        partition beyond the outage records, about 28 days of them, across
+        restarts and updates, for the web page's chart (1 hour to 30 days).
+        Rev B only. See components/history.

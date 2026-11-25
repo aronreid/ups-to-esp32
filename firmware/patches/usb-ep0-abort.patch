@@ -1,0 +1,127 @@
+diff -ruN a/usb/CMakeLists.txt b/usb/CMakeLists.txt
+--- a/usb/CMakeLists.txt	2026-10-01 10:29:20
++++ b/usb/CMakeLists.txt	2026-11-19 12:31:44
+@@ -1,3 +1,15 @@
++# My UPS Pal: ESP-IDF 5.5.6's usb component, vendored to add one function,
++# usb_host_transfer_abort_control() (GitHub #5). A project component of the
++# same name replaces IDF's own. The patch is firmware/patches/usb-ep0-abort.patch,
++# and tools/test/test_usb_patch.py checks this directory is exactly IDF 5.5.6's
++# component plus that patch. Built only on 5.5.6: on any other IDF, the rest of
++# the stack (hal, soc) may not match this copy. Moving IDF means re-vendoring.
++if(NOT "${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}" STREQUAL "5.5.6")
++    message(FATAL_ERROR "components/usb is ESP-IDF 5.5.6's usb component, patched; this is IDF "
++                        "${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}. "
++                        "Re-vendor it for this version (firmware/patches/README.md).")
++endif()
++
+ idf_build_get_property(target IDF_TARGET)
+ 
+ if(${target} STREQUAL "linux")
+diff -ruN a/usb/include/usb/usb_host.h b/usb/include/usb/usb_host.h
+--- a/usb/include/usb/usb_host.h	2026-10-01 10:29:20
++++ b/usb/include/usb/usb_host.h	2026-11-19 12:31:44
+@@ -652,6 +652,24 @@
+  */
+ esp_err_t usb_host_transfer_submit_control(usb_host_client_handle_t client_hdl, usb_transfer_t *transfer);
+ 
++/**
++ * @brief Abandon the control transfers in flight to a device
++ *
++ * My UPS Pal patch (firmware/patches/usb-ep0-abort.patch); not in ESP-IDF.
++ * EP0 is halted and flushed, each transfer in flight is returned through its
++ * callback (from usb_host_client_handle_events(), as usual) with status
++ * USB_TRANSFER_STATUS_CANCELED, and EP0 is made active again, so the next
++ * control transfer sends a fresh SETUP. Asynchronous: wait for the callback
++ * before freeing or reusing the transfer.
++ *
++ * @return
++ *    - ESP_OK: abort queued
++ *    - ESP_ERR_INVALID_ARG: Invalid argument
++ *    - ESP_ERR_NOT_FOUND: no control transfer in flight
++ *    - ESP_ERR_INVALID_STATE: the device is gone (its transfers return by themselves)
++ */
++esp_err_t usb_host_transfer_abort_control(usb_host_client_handle_t client_hdl, usb_device_handle_t dev_hdl);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -ruN a/usb/private_include/usbh.h b/usb/private_include/usbh.h
+--- a/usb/private_include/usbh.h	2026-10-01 10:29:20
++++ b/usb/private_include/usbh.h	2026-11-19 12:31:44
+@@ -665,6 +665,18 @@
+ esp_err_t usbh_dev_submit_ctrl_urb(usb_device_handle_t dev_hdl, urb_t *urb);
+ 
+ /**
++ * @brief Abandon the control transfers in flight on a device's EP0
++ *
++ * My UPS Pal patch. Halts and flushes EP0's pipe, returns each URB through
++ * the USBH_EVENT_CTRL_XFER event with status CANCELED, then clears the pipe.
++ * Runs in usbh_process(), so it completes asynchronously.
++ *
++ * @return ESP_OK if queued, ESP_ERR_NOT_FOUND if nothing was in flight,
++ *         ESP_ERR_INVALID_STATE if the device is gone
++ */
++esp_err_t usbh_dev_ep0_abort(usb_device_handle_t dev_hdl);
++
++/**
+  * @brief Enqueue a URB to an endpoint
+  *
+  * The URB will remain enqueued until it completes (successfully or errors out). Use usbh_ep_dequeue_urb() to dequeue
+diff -ruN a/usb/usb_host.c b/usb/usb_host.c
+--- a/usb/usb_host.c	2026-10-01 10:29:20
++++ b/usb/usb_host.c	2026-11-19 12:31:44
+@@ -1664,3 +1664,10 @@
+     }
+     return ret;
+ }
++
++/* My UPS Pal patch (firmware/patches/usb-ep0-abort.patch). */
++esp_err_t usb_host_transfer_abort_control(usb_host_client_handle_t client_hdl, usb_device_handle_t dev_hdl)
++{
++    HOST_CHECK(client_hdl != NULL && dev_hdl != NULL, ESP_ERR_INVALID_ARG);
++    return usbh_dev_ep0_abort(dev_hdl);
++}
+diff -ruN a/usb/usbh.c b/usb/usbh.c
+--- a/usb/usbh.c	2026-10-01 10:29:20
++++ b/usb/usbh.c	2026-11-19 12:31:44
+@@ -1558,6 +1558,40 @@
+     return ret;
+ }
+ 
++/* My UPS Pal patch (firmware/patches/usb-ep0-abort.patch): abandon the
++ * control transfers in flight on a device's EP0, the way usbh already does
++ * itself after an EP0 error: halt the pipe, retire its URBs (status
++ * CANCELED), hand each back to its owner's callback, and make the pipe active
++ * again so a fresh SETUP can go out. ESP-IDF 5.5 has no public way to do this;
++ * a device that never answers one control request otherwise holds EP0 until
++ * it is unplugged. */
++esp_err_t usbh_dev_ep0_abort(usb_device_handle_t dev_hdl)
++{
++    USBH_CHECK(dev_hdl != NULL, ESP_ERR_INVALID_ARG);
++    device_t *dev_obj = (device_t *)dev_hdl;
++    esp_err_t ret;
++    bool call_proc_req_cb = false;
++
++    USBH_ENTER_CRITICAL();
++    if (dev_obj->dynamic.flags.is_gone) {
++        ret = ESP_ERR_INVALID_STATE;        /* the gone path flushes EP0 itself */
++    } else if (dev_obj->dynamic.num_ctrl_xfers_inflight == 0) {
++        ret = ESP_ERR_NOT_FOUND;            /* nothing to abandon */
++    } else {
++        call_proc_req_cb = _dev_set_actions(dev_obj,
++                                            DEV_ACTION_EP0_FLUSH |
++                                            DEV_ACTION_EP0_DEQUEUE |
++                                            DEV_ACTION_EP0_CLEAR);
++        ret = ESP_OK;
++    }
++    USBH_EXIT_CRITICAL();
++
++    if (call_proc_req_cb) {
++        p_usbh_obj->constant.proc_req_cb(USB_PROC_REQ_SOURCE_USBH, false, p_usbh_obj->constant.proc_req_cb_arg);
++    }
++    return ret;
++}
++
+ esp_err_t usbh_ep_enqueue_urb(usbh_ep_handle_t ep_hdl, urb_t *urb)
+ {
+     USBH_CHECK(ep_hdl != NULL && urb != NULL, ESP_ERR_INVALID_ARG);
