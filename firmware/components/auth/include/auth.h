@@ -1,0 +1,55 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+#pragma once
+/* The optional login.
+ *
+ * OFF BY DEFAULT, and off means exactly what the board did before: anyone who
+ * can reach it can read it and change it. Setting a username and password --
+ * during Wi-Fi setup or later on the page -- turns it on, and from then on
+ * every change needs them: the web page's writes (UPS commands, Wi-Fi,
+ * updates, reboots) and NUT's INSTCMD and SET VAR. Reading never needs them,
+ * so Home Assistant, a NAS and Prometheus keep working with no setup.
+ *
+ * The five-press BOOT reset clears the login along with Wi-Fi: forgetting the
+ * password costs a trip to the board, never the board.
+ *
+ * Plain HTTP and plain NUT: the password crosses the LAN readable, as it does
+ * with upsd. This keeps honest people and stray scripts out; it does not
+ * defeat someone capturing the network. */
+#include "esp_err.h"
+#include "auth_core.h"
+#include <stdbool.h>
+#include <stddef.h>
+
+typedef enum { AUTH_OK, AUTH_BAD, AUTH_LOCKED } auth_result_t;
+
+/* The lockout key for the peer of a socket (0 if unknown): wrong passwords are
+ * counted per source address, so one host cannot lock the others out. */
+uint32_t auth_src_of_fd(int fd);
+/* One key per peer ADDRESS (0 if unknown), for counting a peer's connections:
+ * unlike the lockout key, hosts sharing a routed IPv6 /64 are told apart. */
+uint32_t auth_peer_of_fd(int fd);
+/* The one lockout key every NUT client from another network shares. Web
+ * logins have a board-wide limit behind the per-source one; NUT's password
+ * check has only the per-source one, and a routed host with a /56 has 256
+ * /64s to take a fresh count from. */
+#define AUTH_SRC_NUT_ROUTED 0xFFFFFF01u
+
+esp_err_t auth_init(void);                  /* load from NVS; call after nvs_flash_init */
+bool auth_enabled(void);
+/* The stored username into out; false if there is no login. */
+bool auth_username(char *out, size_t cap);
+
+/* Set, change or (user NULL or "") clear the login. ESP_ERR_INVALID_ARG if the
+ * username or password is not one this board can store (see authc_shape_ok). */
+esp_err_t auth_set_credentials(const char *user, const char *pass);
+
+/* Check a username and password; on success, token receives a new login token
+ * of AUTH_TOKEN_LEN hex characters for the web page. */
+auth_result_t auth_login(uint32_t src, const char *user, const char *pass,
+                         char token[AUTH_TOKEN_LEN + 1]);
+auth_result_t auth_check(uint32_t src, const char *user, const char *pass);
+bool auth_token_ok(const char *token);
+void auth_logout(const char *token);
+
+authc_nut_t auth_nut_write(uint32_t src, const char *user, const char *pass);
+bool auth_origin_ok(const char *origin, const char *host);

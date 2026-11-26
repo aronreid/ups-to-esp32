@@ -1,0 +1,197 @@
+diff -ruN a/usb/enum.c b/usb/enum.c
+--- a/usb/enum.c
++++ b/usb/enum.c
+@@ -117,6 +117,54 @@
+     "CANCEL",
+ };
+ 
++/* My UPS Pal patch (firmware/patches/usb-enum-report.patch). ESP-IDF cancels
++ * a failed enumeration quietly: no client hears of the device at all, so a
++ * UPS that fails here looks exactly like one that is not plugged in. Keep the
++ * last failure for the board's diagnostics. Written from the USB host
++ * library task only; read anywhere under the spinlock. */
++static portMUX_TYPE s_enum_report_mux = portMUX_INITIALIZER_UNLOCKED;
++static usb_host_enum_report_t s_enum_report = { .status = -1 };
++
++void enum_report_connect(void)
++{
++    portENTER_CRITICAL(&s_enum_report_mux);
++    s_enum_report.connects++;
++    portEXIT_CRITICAL(&s_enum_report_mux);
++}
++
++void enum_report_fail(uint8_t stage, int8_t status, uint16_t got, uint16_t want)
++{
++    portENTER_CRITICAL(&s_enum_report_mux);
++    s_enum_report.fails++;
++    s_enum_report.stage = stage;
++    s_enum_report.status = status;
++    s_enum_report.got = got;
++    s_enum_report.want = want;
++    portEXIT_CRITICAL(&s_enum_report_mux);
++}
++
++void enum_report_get(usb_host_enum_report_t *out)
++{
++    portENTER_CRITICAL(&s_enum_report_mux);
++    *out = s_enum_report;
++    portEXIT_CRITICAL(&s_enum_report_mux);
++}
++
++const char *enum_report_stage_name(uint8_t stage)
++{
++    switch (stage) {
++    case USB_HOST_ENUM_FAIL_PORT_RESET: return "PORT_RESET";
++    case USB_HOST_ENUM_FAIL_PORT_SPEED: return "PORT_SPEED";
++    case USB_HOST_ENUM_FAIL_NEW_DEV:    return "NEW_DEV";
++    case USB_HOST_ENUM_FAIL_CANCELLED:  return "CANCELLED";
++    default: break;
++    }
++    if (stage < sizeof(enum_stage_strings) / sizeof(enum_stage_strings[0])) {
++        return enum_stage_strings[stage];
++    }
++    return "?";
++}
++
+ typedef struct {
+     // Constant
+     uint8_t new_dev_addr;           /**< Device address that should be assigned during enumeration */
+@@ -1072,6 +1120,13 @@
+                          p_enum_driver->single_thread.parent_dev_addr,
+                          p_enum_driver->single_thread.parent_port_num,
+                          enum_stage_strings[last_stage]);
++                /* My UPS Pal patch (usb-enum-report.patch). */
++                {
++                    const usb_transfer_t *x = &p_enum_driver->constant.urb->transfer;
++                    int exp = p_enum_driver->single_thread.expect_num_bytes;
++                    enum_report_fail((uint8_t)last_stage, (int8_t)x->status,
++                                     (uint16_t)x->actual_num_bytes, (uint16_t)(exp > 0 ? exp : 0));
++                }
+                 next_stage = ENUM_STAGE_CANCEL;
+                 break;
+             }
+@@ -1288,6 +1343,8 @@
+     }
+ 
+     p_enum_driver->single_thread.stage = ENUM_STAGE_CANCEL;
++    /* My UPS Pal patch (usb-enum-report.patch): the device left mid-way. */
++    enum_report_fail(USB_HOST_ENUM_FAIL_CANCELLED, -1, 0, (uint16_t)old_stage);
+ 
+     ESP_LOGV(ENUM_TAG, "[%d:%d] Cancel at %s",
+              p_enum_driver->single_thread.parent_dev_addr,
+diff -ruN a/usb/hub.c b/usb/hub.c
+--- a/usb/hub.c
++++ b/usb/hub.c
+@@ -17,6 +17,7 @@
+ #include "usb_private.h"
+ #include "hcd.h"
+ #include "hub.h"
++#include "enum.h"     /* My UPS Pal patch (usb-enum-report.patch) */
+ #include "usb/usb_helpers.h"
+ 
+ #if ENABLE_USB_HUBS
+@@ -383,18 +384,22 @@
+         // Nothing to do
+         break;
+     case HCD_PORT_EVENT_CONNECTION: {
++        enum_report_connect();      /* My UPS Pal patch (usb-enum-report.patch) */
+         if (hcd_port_command(root_port_hdl, HCD_PORT_CMD_RESET) != ESP_OK) {
+             ESP_LOGE(HUB_DRIVER_TAG, "Root port reset failed");
++            enum_report_fail(USB_HOST_ENUM_FAIL_PORT_RESET, -1, 0, 0);
+             goto reset_err;
+         }
+         ESP_LOGD(HUB_DRIVER_TAG, "Root port reset");
+         usb_speed_t speed;
+         if (hcd_port_get_speed(p_hub_driver_obj->constant.root_port_hdl, &speed) != ESP_OK) {
++            enum_report_fail(USB_HOST_ENUM_FAIL_PORT_SPEED, -1, 0, 0);
+             goto new_dev_err;
+         }
+ 
+         if (dev_tree_node_new(NULL, 0, speed) != ESP_OK) {
+             ESP_LOGE(HUB_DRIVER_TAG, "Failed to add new device");
++            enum_report_fail(USB_HOST_ENUM_FAIL_NEW_DEV, -1, 0, 0);
+             goto new_dev_err;
+         }
+ 
+diff -ruN a/usb/include/usb/usb_host.h b/usb/include/usb/usb_host.h
+--- a/usb/include/usb/usb_host.h
++++ b/usb/include/usb/usb_host.h
+@@ -681,7 +681,35 @@
+  * @return Count since boot
+  */
+ uint32_t usb_host_stray_chan_events(void);
++
++/**
++ * @brief What the root port and enumeration did, for diagnostics
++ *
++ * My UPS Pal patch (firmware/patches/usb-enum-report.patch); not in ESP-IDF.
++ * ESP-IDF gives up on a device that fails enumeration without telling any
++ * client: the device simply never appears. This records it.
++ */
++typedef struct {
++    uint32_t connects;      /**< Root port connections seen since boot */
++    uint32_t fails;         /**< Enumerations that failed since boot */
++    uint8_t  stage;         /**< Last failure: enumeration stage, or one of USB_HOST_ENUM_FAIL_* */
++    int8_t   status;        /**< Last failure: usb_transfer_status_t of the stage's transfer, -1 none */
++    uint16_t got;           /**< Last failure: bytes the device returned (setup packet included) */
++    uint16_t want;          /**< Last failure: bytes expected, 0 if any */
++} usb_host_enum_report_t;
+ 
++#define USB_HOST_ENUM_FAIL_PORT_RESET   0xF0    /**< root port reset failed after a connection */
++#define USB_HOST_ENUM_FAIL_PORT_SPEED   0xF1    /**< could not read the port speed after reset */
++#define USB_HOST_ENUM_FAIL_NEW_DEV      0xF2    /**< could not add the device */
++#define USB_HOST_ENUM_FAIL_CANCELLED    0xF3    /**< enumeration cancelled from outside (device left) */
++
++void usb_host_enum_report(usb_host_enum_report_t *out);
++
++/**
++ * @brief Name of an enumeration stage or USB_HOST_ENUM_FAIL_* code, for logs
++ */
++const char *usb_host_enum_stage_name(uint8_t stage);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -ruN a/usb/private_include/enum.h b/usb/private_include/enum.h
+--- a/usb/private_include/enum.h
++++ b/usb/private_include/enum.h
+@@ -10,6 +10,7 @@
+ #include "esp_err.h"
+ #include "hcd.h"
+ #include "usbh.h"
++#include "usb/usb_host.h"     /* My UPS Pal patch (usb-enum-report.patch) */
+ #include "usb/usb_types_stack.h"
+ #include "usb/usb_types_ch9.h"
+ 
+@@ -172,6 +173,13 @@
+  */
+ esp_err_t enum_process(void);
+ 
++/* My UPS Pal patch (firmware/patches/usb-enum-report.patch): hub.c reports
++ * root port connections and failures before enumeration starts. */
++void enum_report_connect(void);
++void enum_report_fail(uint8_t stage, int8_t status, uint16_t got, uint16_t want);
++void enum_report_get(usb_host_enum_report_t *out);
++const char *enum_report_stage_name(uint8_t stage);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -ruN a/usb/usb_host.c b/usb/usb_host.c
+--- a/usb/usb_host.c
++++ b/usb/usb_host.c
+@@ -1677,3 +1677,14 @@
+ {
+     return hcd_stray_chan_events();
+ }
++
++/* My UPS Pal patch (firmware/patches/usb-enum-report.patch). */
++void usb_host_enum_report(usb_host_enum_report_t *out)
++{
++    enum_report_get(out);
++}
++
++const char *usb_host_enum_stage_name(uint8_t stage)
++{
++    return enum_report_stage_name(stage);
++}

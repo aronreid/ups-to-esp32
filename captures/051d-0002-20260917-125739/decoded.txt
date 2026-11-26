@@ -1,0 +1,93 @@
+1133 descriptor bytes, 86 power/battery fields
+
+RID Type      Off  Sz Usage                         LogMax      Unit  Exp  Shift      Example
+---------------------------------------------------------------------------------------------
+  1 Feature     0   8 iProduct                         255       0x0    0      0          255
+  2 Feature     0   8 iSerialNumber                    255       0x0    0      0          255
+  3 Feature     0   8 iDeviceChemistry                 255       0x0    0      0          255
+  4 Feature     0   8 iOEMInformation                  255       0x0    0      0          255
+  5 Feature     0   8 ManufacturerData                 255       0x0    0      0          255
+  6 Input       0   8 Charging                         255       0x0    0      0          255
+  6 Feature     0   8 Charging                         255       0x0    0      0          255
+  6 Input       8   8 Discharging                      255       0x0    0      0          255
+  6 Feature     8   8 Discharging                      255       0x0    0      0          255
+  7 Feature     0  16 0x85                           65535       0x0    0      0    6.554e+04
+  8 Feature     0  16 ConfigVoltage                  65535  0xf0d121    5     -2        655.4
+  9 Feature     0  16 Voltage                        65535  0xf0d121    5     -2        655.4
+ 10 Feature     0   8 iManufacturer                    255       0x0    0      0          255
+ 11 Feature     0   8 CapacityMode                     255       0x0    0      0          255
+ 12 Input       0   8 RemainingCapacity                100       0x0    0      0          100
+ 12 Feature     0   8 RemainingCapacity                100       0x0    0      0          100
+ 12 Input       8  16 RunTimeToEmpty                 65535    0x1001    0      0    6.554e+04
+ 12 Feature     8  16 RunTimeToEmpty                 65535    0x1001    0      0    6.554e+04
+ 13 Feature     0   8 DesignCapacity                   100       0x0    0      0          100
+ 14 Feature     0   8 FullChargeCapacity               100       0x0    0      0          100
+ 15 Feature     0   8 0x8c                             100       0x0    0      0          100
+ 16 Feature     0   8 CapacityGranularity2             100       0x0    0      0          100
+ 17 Feature     0   8 RemainingCapacityLimit           100       0x0    0      0          100
+ 18 Feature     0   8 CapacityGranularity1             100       0x0    0      0          100
+ 19 Input       0   8 ACPresent                          1       0x0    0      0            1
+ 19 Feature     0   8 ACPresent                          1       0x0    0      0            1
+ 20 Input       0   8 BelowRemainingCapacityLimit        1       0x0    0      0            1
+ 20 Feature     0   8 BelowRemainingCapacityLimit        1       0x0    0      0            1
+ 20 Input       8   8 ShutdownImminent                   1       0x0    0      0            1
+ 20 Feature     8   8 ShutdownImminent                   1       0x0    0      0            1
+ 21 Feature     0  16 DelayBeforeShutdown            32767    0x1001    0      0    3.277e+04
+ 22 Input       0   1 Charging                           1       0x0    0      0            1
+ 22 Feature     0   1 Charging                           1       0x0    0      0            1
+ 22 Input       1   1 Discharging                        1       0x0    0      0            1
+ 22 Feature     1   1 Discharging                        1       0x0    0      0            1
+ 22 Input       2   1 ACPresent                          1       0x0    0      0            1
+ 22 Feature     2   1 ACPresent                          1       0x0    0      0            1
+ 22 Input       3   1 BatteryPresent                     1       0x0    0      0            1
+ 22 Feature     3   1 BatteryPresent                     1       0x0    0      0            1
+ 22 Input       4   1 BelowRemainingCapacityLimit        1       0x0    0      0            1
+ 22 Feature     4   1 BelowRemainingCapacityLimit        1       0x0    0      0            1
+ 22 Input       5   1 ShutdownImminent                   1       0x0    0      0            1
+ 22 Feature     5   1 ShutdownImminent                   1       0x0    0      0            1
+ 22 Input       6   1 RemainingTimeLimitExpired          1       0x0    0      0            1
+ 22 Feature     6   1 RemainingTimeLimitExpired          1       0x0    0      0            1
+ 22 Input       7   1 CommunicationLost                  1       0x0    0      0            1
+ 22 Feature     7   1 CommunicationLost                  1       0x0    0      0            1
+ 22 Input       8   1 NeedReplacement                    1       0x0    0      0            1
+ 22 Feature     8   1 NeedReplacement                    1       0x0    0      0            1
+ 22 Input       9   1 Overload                           1       0x0    0      0            1
+ 22 Feature     9   1 Overload                           1       0x0    0      0            1
+ 22 Input      10   1 VoltageNotRegulated                1       0x0    0      0            1
+ 22 Feature    10   1 VoltageNotRegulated                1       0x0    0      0            1
+ 23 Feature     0  16 0x2a                           65535    0x1001    0      0    6.554e+04
+ 24 Feature     0   8 AudibleAlarmControl                3       0x0    0      0            3
+ 32 Feature     0  16 0x85                           65535       0x0    0      0    6.554e+04
+ 33 Input       0   8 Test                               6       0x0    0      0            6
+ 33 Feature     0   8 Test                               6       0x0    0      0            6
+ 34 Feature     0   8 RemainingCapacity                100       0x0    0      0          100
+ 35 Feature     0  16 RunTimeToEmpty                 65535    0x1001    0      0    6.554e+04
+ 36 Feature     0  16 0x2a                           65535    0x1001    0      0    6.554e+04
+ 37 Feature     0  16 ConfigVoltage                  65535  0xf0d121    5     -2        655.4
+ 38 Feature     0  16 Voltage                        65535  0xf0d121    5     -2        655.4
+ 48 Feature     0   8 ConfigVoltage                    255  0xf0d121    7      0          255
+ 49 Feature     0  16 Voltage                          255  0xf0d121    7      0          255
+ 50 Feature     0  16 LowVoltageTransfer                88  0xf0d121    7      0           88
+ 51 Feature     0  16 HighVoltageTransfer              142  0xf0d121    7      0          142
+ 66 Feature     0  16 DelayBeforeShutdown            32767    0x1001    0      0    3.277e+04
+ 80 Feature     0   8 PercentLoad                      100       0x0    0      0          100
+ 82 Feature     0  16 ConfigActivePower              65535    0xd121    7      0    6.554e+04
+127 Feature     0   8 iProduct                         255       0x0    0      0          255
+125 Feature     0   8 iSerialNumber                    255       0x0    0      0          255
+124 Feature     0   8 iManufacturer                    255       0x0    0      0          255
+123 Feature     0  16 0x85                           65535       0x0    0      0    6.554e+04
+122 Feature     0   1 Charging                           1       0x0    0      0            1
+122 Feature     1   1 Discharging                        1       0x0    0      0            1
+122 Feature     2   1 ACPresent                          1       0x0    0      0            1
+122 Feature     3   1 BatteryPresent                     1       0x0    0      0            1
+122 Feature     4   1 BelowRemainingCapacityLimit        1       0x0    0      0            1
+122 Feature     5   1 ShutdownImminent                   1       0x0    0      0            1
+122 Feature     6   1 RemainingTimeLimitExpired          1       0x0    0      0            1
+122 Feature     7   1 CommunicationLost                  1       0x0    0      0            1
+122 Feature     8   1 NeedReplacement                    1       0x0    0      0            1
+122 Feature     9   1 Overload                           1       0x0    0      0            1
+122 Feature    10   1 VoltageNotRegulated                1       0x0    0      0            1
+120 Feature     0   8 AudibleAlarmControl                3       0x0    0      0            3
+
+Feature fields: 67   Input fields: 19
+Distinct report IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 32, 33, 34, 35, 36, 37, 38, 48, 49, 50, 51, 66, 80, 82, 120, 122, 123, 124, 125, 127]

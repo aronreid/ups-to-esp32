@@ -1,0 +1,73 @@
+diff -ruN a/usb/hcd_dwc.c b/usb/hcd_dwc.c
+--- a/usb/hcd_dwc.c
++++ b/usb/hcd_dwc.c
+@@ -279,6 +279,43 @@
+     return s_stray_chan_events;
+ }
+ 
++/* My UPS Pal patch (firmware/patches/usb-crash-note.patch). GitLab #80: a
++ * buffer with no URB reached _buffer_parse()/_buffer_exec() on field boards,
++ * through paths the stray guard above does not cover, and the backtrace alone
++ * cannot say which pipe or what state its buffers were in. Just before those
++ * asserts fire, hand four raw words to crashlog (weak: no dependency on it),
++ * which formats them at the next boot. Runs in the ISR, about to panic: no
++ * library calls, only copies. */
++void crashlog_note_words(const uint32_t w[4]) __attribute__((weak));
++
++static void IRAM_ATTR _crash_note(pipe_t *pipe, uint8_t site)
++{
++    if (!crashlog_note_words) {
++        return;
++    }
++    uint32_t w[4];
++    w[0] = ((uint32_t)site << 24) | ((uint32_t)pipe->ep_char.bEndpointAddress << 16) |
++           (((uint32_t)pipe->ep_char.type & 0xFF) << 8) | ((uint32_t)pipe->state & 0xFF);
++    w[1] = pipe->multi_buffer_control.val;
++    w[2] = ((uint32_t)pipe->last_event & 0xFF) |
++           ((uint32_t)pipe->chan_obj->flags.halt_requested << 8) |
++           ((uint32_t)pipe->chan_obj->flags.active << 9) |
++           ((uint32_t)pipe->cs_flags.waiting_halt << 10) |
++           ((uint32_t)(pipe->task_waiting_pipe_notif != NULL) << 11) |
++           (((uint32_t)pipe->num_urb_pending & 0xFF) << 16) |
++           (((uint32_t)pipe->num_urb_done & 0xFF) << 24);
++    w[3] = 0;
++    for (int i = 0; i < NUM_BUFFERS && i < 2; i++) {
++        const dma_buffer_block_t *b = pipe->buffers[i];
++        uint32_t v = (b->urb != NULL) | ((uint32_t)b->status_flags.executing << 1) |
++                     ((uint32_t)b->status_flags.was_canceled << 2) |
++                     (((uint32_t)b->status_flags.pipe_event & 0x1F) << 3) |
++                     (((uint32_t)b->status_flags.stop_idx & 0xFF) << 8);
++        w[3] |= v << (16 * i);
++    }
++    crashlog_note_words(w);
++}
++
+ // ------------------------------------------------- Forward Declare ---------------------------------------------------
+ 
+ // --------------------- Cache sync ------------------------
+@@ -2348,6 +2385,9 @@
+ {
+     assert(pipe->multi_buffer_control.rd_idx != pipe->multi_buffer_control.wr_idx || pipe->multi_buffer_control.buffer_num_to_exec > 0);
+     dma_buffer_block_t *buffer_to_exec = pipe->buffers[pipe->multi_buffer_control.rd_idx];
++    if (buffer_to_exec->urb == NULL) {
++        _crash_note(pipe, 3);       /* My UPS Pal patch (usb-crash-note.patch) */
++    }
+     assert(buffer_to_exec->urb != NULL);
+ 
+     uint32_t start_idx;
+@@ -2579,8 +2619,15 @@
+ 
+ static void _buffer_parse(pipe_t *pipe)
+ {
++    /* My UPS Pal patch (usb-crash-note.patch): sites 1 and 2. */
++    if (pipe->multi_buffer_control.buffer_num_to_parse == 0) {
++        _crash_note(pipe, 1);
++    }
+     assert(pipe->multi_buffer_control.buffer_num_to_parse > 0);
+     dma_buffer_block_t *buffer_to_parse = pipe->buffers[pipe->multi_buffer_control.fr_idx];
++    if (buffer_to_parse->urb == NULL) {
++        _crash_note(pipe, 2);
++    }
+     assert(buffer_to_parse->urb != NULL);
+     bool is_in = pipe->ep_char.bEndpointAddress & USB_B_ENDPOINT_ADDRESS_EP_DIR_MASK;
+     int mps = pipe->ep_char.mps;

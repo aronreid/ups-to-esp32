@@ -1,0 +1,38 @@
+lwIP upstream 6a3a94420 (2026-11-16, bug #68927), on ESP-IDF 5.5.6's lwIP,
+less its whitespace-only hunk.
+tcp_process() SYN_RCVD: the ACK completing the handshake was accepted
+without checking its sequence number against the receive window
+(RFC 9293 3.10.7.4). An out-of-window segment is now answered with an ACK
+and dropped.
+
+diff -ruN a/lwip/lwip/src/core/tcp_in.c b/lwip/lwip/src/core/tcp_in.c
+--- a/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
++++ b/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
+@@ -950,6 +950,27 @@
+           tcp_rexmit(pcb);
+         }
+       } else if (flags & TCP_ACK) {
++        /* Check sequence-number acceptability before completing the
++         * handshake or notifying the application. */
++        if (pcb->rcv_wnd == 0) {
++          /* Window cannot be 0 here, just drop the packet. */
++          LWIP_DEBUGF(TCP_DEBUG, ("TCP has zero rcv_wnd in SYN_RCVD.\n"));
++          return ERR_OK;
++        } else {
++          u32_t wnd_end = pcb->rcv_nxt + pcb->rcv_wnd - 1;
++          u32_t seq_end = seqno + tcplen - 1;
++
++          if (tcplen == 0) {
++            if (!TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, wnd_end)) {
++              tcp_ack_now(pcb);
++              return ERR_OK;
++            }
++          } else if (!TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, wnd_end) &&
++                     !TCP_SEQ_BETWEEN(seq_end, pcb->rcv_nxt, wnd_end)) {
++            tcp_ack_now(pcb);
++            return ERR_OK;
++          }
++        }
+         /* expected ACK number? */
+         if (TCP_SEQ_BETWEEN(ackno, pcb->lastack + 1, pcb->snd_nxt)) {
+           pcb->state = ESTABLISHED;

@@ -1,0 +1,19 @@
+lwIP upstream 3d896ba0a (2026-06-16), on ESP-IDF 5.5.6's lwIP.
+tcp_get_next_optbyte(): an option's length byte read at the end of the
+options came from past them (past the pbuf when the header is split).
+Reads past the options now return End of Options.
+
+diff -ruN a/lwip/lwip/src/core/tcp_in.c b/lwip/lwip/src/core/tcp_in.c
+--- a/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
++++ b/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
+@@ -1958,6 +1958,10 @@
+ tcp_get_next_optbyte(void)
+ {
+   u16_t optidx = tcp_optidx++;
++  if (optidx >= tcphdr_optlen) {
++    /* Return 0 for any excess reads (like length fields) */
++    return LWIP_TCP_OPT_EOL;
++  }
+   if ((tcphdr_opt2 == NULL) || (optidx < tcphdr_opt1len)) {
+     u8_t *opts = (u8_t *)tcphdr + TCP_HLEN;
+     return opts[optidx];

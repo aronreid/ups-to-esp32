@@ -1,0 +1,24 @@
+lwIP upstream 777e6d40d (2026-06-02, bug #68416), on ESP-IDF 5.5.6's lwIP.
+tcp_receive(): an in-order segment already trimmed to the receive window
+took the FIN of a covered out-of-order segment, one sequence number past
+the window, and rcv_wnd underflowed (an assert and restart). Any TCP peer
+could send it. The FIN segment now stays queued until the window opens.
+
+diff -ruN a/lwip/lwip/src/core/tcp_in.c b/lwip/lwip/src/core/tcp_in.c
+--- a/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
++++ b/lwip/lwip/src/core/tcp_in.c	2026-11-25 13:55:58
+@@ -1532,6 +1532,14 @@
+               /* inseg cannot have FIN here (already processed above) */
+               if ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0 &&
+                   (TCPH_FLAGS(inseg.tcphdr) & TCP_SYN) == 0) {
++                /* Copying the FIN consumes one more sequence number. If inseg
++                   was already trimmed to fill the receive window, that extra
++                   byte would push tcplen past rcv_wnd and underflow the window
++                   update below. Leave the FIN segment on ooseq to be processed
++                   once the window has advanced. */
++                if (tcplen >= pcb->rcv_wnd) {
++                  break;
++                }
+                 TCPH_SET_FLAG(inseg.tcphdr, TCP_FIN);
+                 tcplen = TCP_TCPLEN(&inseg);
+               }
