@@ -1,0 +1,117 @@
+diff -ruN a/usb/CMakeLists.txt b/usb/CMakeLists.txt
+--- a/usb/CMakeLists.txt	2026-11-20 12:56:15
++++ b/usb/CMakeLists.txt	2026-11-20 13:00:11
+@@ -1,8 +1,9 @@
+ # My UPS Pal: ESP-IDF 5.5.6's usb component, vendored to add one function,
+-# usb_host_transfer_abort_control() (GitHub #5). A project component of the
+-# same name replaces IDF's own. The patch is firmware/patches/usb-ep0-abort.patch,
++# usb_host_transfer_abort_control() (GitHub #5), and to make the host
++# controller driver ignore stray channel interrupts. A project component of the
++# same name replaces IDF's own. The patches are in firmware/patches (README.md),
+ # and tools/test/test_usb_patch.py checks this directory is exactly IDF 5.5.6's
+-# component plus that patch. Built only on 5.5.6: on any other IDF, the rest of
++# component plus those patches. Built only on 5.5.6: on any other IDF, the rest of
+ # the stack (hal, soc) may not match this copy. Moving IDF means re-vendoring.
+ if(NOT "${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}.${IDF_VERSION_PATCH}" STREQUAL "5.5.6")
+     message(FATAL_ERROR "components/usb is ESP-IDF 5.5.6's usb component, patched; this is IDF "
+diff -ruN a/usb/hcd_dwc.c b/usb/hcd_dwc.c
+--- a/usb/hcd_dwc.c	2026-11-20 12:56:15
++++ b/usb/hcd_dwc.c	2026-11-20 13:00:11
+@@ -269,6 +269,16 @@
+ 
+ static hcd_obj_t *s_hcd_obj = NULL;     // Note: "s_" is for the static pointer
+ 
++/* My UPS Pal patch (firmware/patches/usb-stray-chan-guard.patch): channel
++ * interrupts that arrived for a pipe with no buffer executing, and were
++ * ignored. See _intr_hdlr_chan(). */
++static volatile uint32_t s_stray_chan_events = 0;
++
++uint32_t hcd_stray_chan_events(void)
++{
++    return s_stray_chan_events;
++}
++
+ // ------------------------------------------------- Forward Declare ---------------------------------------------------
+ 
+ // --------------------- Cache sync ------------------------
+@@ -842,6 +852,26 @@
+ {
+     usb_dwc_hal_chan_event_t chan_event = usb_dwc_hal_chan_decode_intr(chan_obj);
+     hcd_pipe_event_t event = HCD_PIPE_EVENT_NONE;
++
++    /* My UPS Pal patch (firmware/patches/usb-stray-chan-guard.patch).
++     * Every legitimate channel event ends the buffer that is executing. One
++     * that arrives with no buffer executing is stray: it can come late, after
++     * the port went down and a flush had already retired that buffer. Marking
++     * a buffer done anyway retires one that holds no URB: _buffer_parse()
++     * then trips assert(buffer_to_parse->urb != NULL) in this ISR (or
++     * _buffer_exec() its own), and buffer_num_to_exec wraps below zero in its
++     * 2-bit field. Either way the board restarts. A stray event is counted
++     * and ignored instead, so the counters stay in 0..2 and every buffer
++     * parsed holds a URB. A halt request is still answered, as the task
++     * waiting for it would otherwise wait for ever. */
++    if (!pipe->multi_buffer_control.buffer_is_executing && chan_event != USB_DWC_HAL_CHAN_EVENT_NONE) {
++        s_stray_chan_events++;
++        if (chan_event == USB_DWC_HAL_CHAN_EVENT_HALT_REQ && pipe->task_waiting_pipe_notif != NULL) {
++            pipe->state = HCD_PIPE_STATE_HALTED;
++            *yield |= _internal_pipe_event_notify(pipe, true);
++        }
++        return HCD_PIPE_EVENT_NONE;
++    }
+ 
+     switch (chan_event) {
+     case USB_DWC_HAL_CHAN_EVENT_CPLT: {
+diff -ruN a/usb/include/usb/usb_host.h b/usb/include/usb/usb_host.h
+--- a/usb/include/usb/usb_host.h	2026-11-20 12:56:15
++++ b/usb/include/usb/usb_host.h	2026-11-20 13:00:11
+@@ -670,6 +670,18 @@
+  */
+ esp_err_t usb_host_transfer_abort_control(usb_host_client_handle_t client_hdl, usb_device_handle_t dev_hdl);
+ 
++/**
++ * @brief How many stray channel interrupts the host controller driver has ignored
++ *
++ * My UPS Pal patch (firmware/patches/usb-stray-chan-guard.patch); not in ESP-IDF.
++ * A channel interrupt that arrives while no transfer is executing on its pipe
++ * would corrupt the pipe's buffer counters (and trip an assert in the ISR);
++ * the driver ignores it and counts it here.
++ *
++ * @return Count since boot
++ */
++uint32_t usb_host_stray_chan_events(void);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff -ruN a/usb/private_include/hcd.h b/usb/private_include/hcd.h
+--- a/usb/private_include/hcd.h	2026-11-20 12:56:15
++++ b/usb/private_include/hcd.h	2026-11-20 13:00:11
+@@ -482,6 +482,15 @@
+ esp_err_t hcd_pipe_command(hcd_pipe_handle_t pipe_hdl, hcd_pipe_cmd_t command);
+ 
+ /**
++ * @brief Channel interrupts ignored because no buffer was executing on the pipe
++ *
++ * My UPS Pal patch (firmware/patches/usb-stray-chan-guard.patch); not in ESP-IDF.
++ *
++ * @return Count since the HCD was installed, never reset
++ */
++uint32_t hcd_stray_chan_events(void);
++
++/**
+  * @brief Get the last event that occurred on a pipe
+  *
+  * This function allows a pipe to be polled for events (i.e., when callbacks are not used). Once an event has been
+diff -ruN a/usb/usb_host.c b/usb/usb_host.c
+--- a/usb/usb_host.c	2026-11-20 12:56:15
++++ b/usb/usb_host.c	2026-11-20 13:00:11
+@@ -1671,3 +1671,9 @@
+     HOST_CHECK(client_hdl != NULL && dev_hdl != NULL, ESP_ERR_INVALID_ARG);
+     return usbh_dev_ep0_abort(dev_hdl);
+ }
++
++/* My UPS Pal patch (firmware/patches/usb-stray-chan-guard.patch). */
++uint32_t usb_host_stray_chan_events(void)
++{
++    return hcd_stray_chan_events();
++}

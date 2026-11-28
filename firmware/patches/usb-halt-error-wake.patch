@@ -1,0 +1,37 @@
+diff -ruN a/usb/hcd_dwc.c b/usb/hcd_dwc.c
+--- a/usb/hcd_dwc.c	2026-11-25 10:50:49
++++ b/usb/hcd_dwc.c	2026-11-25 10:51:06
+@@ -866,7 +866,13 @@
+      * waiting for it would otherwise wait for ever. */
+     if (!pipe->multi_buffer_control.buffer_is_executing && chan_event != USB_DWC_HAL_CHAN_EVENT_NONE) {
+         s_stray_chan_events++;
+-        if (chan_event == USB_DWC_HAL_CHAN_EVENT_HALT_REQ && pipe->task_waiting_pipe_notif != NULL) {
++        /* My UPS Pal patch (firmware/patches/usb-halt-error-wake.patch): an
++         * error ends a pending halt request too (see the ERROR case below). */
++        if (chan_event == USB_DWC_HAL_CHAN_EVENT_ERROR) {
++            chan_obj->flags.halt_requested = 0;
++        }
++        if ((chan_event == USB_DWC_HAL_CHAN_EVENT_HALT_REQ || chan_event == USB_DWC_HAL_CHAN_EVENT_ERROR)
++                && pipe->task_waiting_pipe_notif != NULL) {
+             pipe->state = HCD_PIPE_STATE_HALTED;
+             *yield |= _internal_pipe_event_notify(pipe, true);
+         }
+@@ -909,6 +915,18 @@
+         _buffer_done(pipe, stop_idx, pipe->last_event, false);
+         // Parse the buffer
+         _buffer_parse(pipe);
++        /* My UPS Pal patch (firmware/patches/usb-halt-error-wake.patch).
++         * The HAL reports an error ahead of a halt request when both are
++         * pending, and leaves halt_requested set. If a task is waiting in
++         * _pipe_cmd_halt() it would wait for ever: the channel is already
++         * halted, so no further interrupt comes. Wake it (the pipe is
++         * HALTED, as the waiter expects), and clear the stale request, or
++         * the next channel halt on this channel (a normal completion) is
++         * read as a halt request with no one waiting. */
++        chan_obj->flags.halt_requested = 0;
++        if (pipe->task_waiting_pipe_notif != NULL) {
++            *yield |= _internal_pipe_event_notify(pipe, true);
++        }
+         break;
+     }
+     case USB_DWC_HAL_CHAN_EVENT_HALT_REQ: {
